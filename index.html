@@ -395,7 +395,7 @@ const MEMBERS = STATIONS.map(([name, id, nick, fan, secs, last]) => {
     vods: src.v.map(([date, mins, reads, no], i) => ({ time: toTime(date), mins, reads, no, title: src.t[i] || `${dateLabel(toTime(date))} 다시보기` }))
   };
 });
-let HIST = [], range = 1, boardKey = "cur", market, lines = new Map(), TOP = [];
+let infoDate = "11/2", HIST = [], range = 1, boardKey = "cur", market, lines = new Map(), TOP = [];
 const lastSnap = () => HIST[HIST.length - 1];
 const profile = m => `#member-${encodeURIComponent(m.id)}`;
 const color = m => m.color || css("--bar");
@@ -560,7 +560,7 @@ function showMember(m) {
       <div class="panel-head"><div><h2>일자별 시청자 수</h2><p class="note">1시간마다 수집한 값으로 만듭니다. 봉 하나가 그날의 시작, 최고, 최저, 종료 시청자 수입니다.</p></div></div>
       ${bars.length ? `<div class="keys"><span><i style="background:var(--up)"></i>상승 마감</span><span><i style="background:var(--down)"></i>하락 마감</span></div><div class="readout num" id="readout"></div><div class="candle-box" id="candle"></div>` : `<p class="empty">아직 수집된 방송이 없습니다. 수집 시간에 방송 중이면 기록이 쌓입니다.</p>`}
     </div>
-    <div class="panel"><div class="panel-head"><h2>방송 다시보기</h2><span class="note">11/2 기준${m.vodTotal > m.vods.length ? `, 전체 ${fmt(m.vodTotal)}개 중 최근 ${m.vods.length}개` : ""}</span></div>
+    <div class="panel"><div class="panel-head"><h2>방송 다시보기</h2><span class="note">${infoDate} 기준${m.vodTotal > m.vods.length ? `, 전체 ${fmt(m.vodTotal)}개 중 최근 ${m.vods.length}개` : ""}</span></div>
       ${m.vods.length ? m.vods.map(v => `<div class="vod"><div class="thumb num">${dateLabel(v.time)}</div><div><div class="vod-t">${esc(v.title)}</div><div class="vod-m">${Math.floor(v.mins / 60)}시간 ${v.mins % 60}분</div></div><div class="vod-l"><a href="https://vod.sooplive.com/player/${v.no}" target="_blank" rel="noopener">보기</a></div></div>`).join("") : `<p class="empty">올라온 다시보기가 없습니다.</p>`}
     </div>`;
   if (candle) { candle.remove(); candle = null; }
@@ -616,6 +616,23 @@ async function refresh() {
     if (rows.length && rows[rows.length - 1].t !== lastSnap()?.t) ingest(rows);
   } catch { $("notice").textContent = "최신 기록을 불러오지 못했습니다. 잠시 후 다시 열어 주세요."; }
 }
+async function refreshStations() {
+  try {
+    const r = await fetch(`stations.json?v=${Math.floor(Date.now() / 3600000)}`, { cache: "no-store" });
+    if (!r.ok) return;
+    const d = await r.json();
+    MEMBERS.forEach(m => {
+      const x = d.stations?.[m.id];
+      if (!x) return;
+      Object.assign(m, { nick: x.nick || m.nick, fan: x.fan ?? m.fan, hours: (x.secs ?? m.hours * 3600) / 3600, vodTotal: x.vodTotal ?? m.vodTotal });
+      if (x.last) m.lastBroad = Date.parse(x.last.replace(" ", "T") + "+09:00") / 1000;
+      if (x.vods) m.vods = x.vods.map(([date, mins, no, title]) => ({ time: toTime(date), mins, no, title: title || `${dateLabel(toTime(date))} 다시보기` }));
+    });
+    if (d.at) infoDate = dateLabel(Date.parse(d.at.replace(" ", "T") + "Z") / 1000);
+    ingest(HIST);
+  } catch { /* 내장 정보로 계속 표시합니다 */ }
+}
+refreshStations();
 refresh();
 setInterval(refresh, 60000);
 </script>
