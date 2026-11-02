@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>추튜버.GG</title>
+<meta name="description" content="추튜버 살아남기 멤버 32명의 시청자 수 순위와 차트를 1시간마다 모아 보여 주는 사이트">
+<meta property="og:title" content="추튜버.GG">
+<meta property="og:description" content="추튜버 살아남기 시청자 수 순위와 차트">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout concept: a broadcast control room crossed with a Korean stock terminal.
+   Ticker on top, one big market chart, a rank board beside it, a wall of monitors below.
+   Korean market convention: rise is red, fall is blue. Deliberately single-theme. */
+:root {
+  color-scheme: dark;
+  --bg: #0b1218;
+  --panel: #111b23;
+  --panel-2: #17242e;
+  --line: #263742;
+  --ink: #e9eff2;
+  --ink-2: #a9bac4;
+  --muted: #7d919d;
+  --line-2: #4a606e;
+  --bar: #6e8695;
+  --accent: #f4b92e;
+  --accent-ink: #1b1403;
+  --up: #ff5a5f;
+  --down: #4f9dff;
+  --flat: #93a6b2;
+  --danger: #ff9d42;
+  --s1: #b88a14; --s2: #1fa896; --s3: #9a74e6; --s4: #57a22e;
+  --s5: #d85f96; --s6: #3f9bd8; --s7: #d9743a; --s8: #8285db;
+  --display: "Black Han Sans", "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --data: "IBM Plex Mono", "IBM Plex Sans KR", ui-monospace, "Malgun Gothic", monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--bg); color: var(--ink); font: 400 15px/1.55 var(--body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3, p { margin: 0; }
+h1, h2 { text-wrap: balance; }
+.num { font-family: var(--data); font-variant-numeric: tabular-nums; }
+.up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--flat); }
+
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1320px; margin-inline: auto; }
+
+/* Top bar */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: var(--bg); border-bottom: 1px solid var(--line); }
+.top-in { display: flex; align-items: center; gap: 12px 24px; flex-wrap: wrap; padding-block: 10px; }
+.logo { font: 400 26px/1 var(--display); letter-spacing: .01em; }
+.logo b { font-weight: 400; color: var(--accent); }
+.nav { display: flex; gap: 4px; }
+.nav a { padding: 6px 12px; font-weight: 600; color: var(--ink-2); border-bottom: 2px solid transparent; }
+.nav a:hover { color: var(--ink); }
+.nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
+.clock { margin-left: auto; display: flex; align-items: center; gap: 12px; color: var(--ink-2); font-size: 13px; }
+.pause { padding: 4px 10px; border: 1px solid var(--line); border-radius: 3px; font-size: 13px; color: var(--ink-2); }
+.pause:hover { color: var(--ink); border-color: var(--ink-2); }
+
+.sample { background: var(--accent); color: var(--accent-ink); font-size: 13px; font-weight: 600; padding-block: 5px; }
+
+/* Ticker */
+.ticker { overflow: hidden; border-bottom: 1px solid var(--line); background: var(--panel); }
+.ticker-run { display: flex; width: max-content; animation: run 48s linear infinite; }
+.ticker:hover .ticker-run { animation-play-state: paused; }
+.ticker-set { display: flex; }
+.tk { display: flex; gap: 8px; align-items: baseline; padding: 7px 18px; border-right: 1px solid var(--line); white-space: nowrap; font-size: 13px; }
+.tk:hover { background: var(--panel-2); }
+.tk strong { font-weight: 600; }
+@keyframes run { to { transform: translateX(-50%); } }
+
+main { padding-block: 20px 40px; }
+.view { display: grid; gap: 20px; }
+
+/* Summary strip */
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); background: var(--panel); }
+.strip > div { padding: 12px 16px; border-left: 1px solid var(--line); min-width: 0; }
+.strip > div:first-child { border-left: 0; }
+.lbl { font-size: 12px; color: var(--muted); letter-spacing: .02em; font-weight: 500; }
+.val { font: 400 28px/1.25 var(--display); overflow-wrap: anywhere; }
+.val.num { font-family: var(--data); font-weight: 600; font-size: 26px; }
+.sub { font-size: 13px; color: var(--ink-2); }
+
+/* Panels */
+.panel { background: var(--panel); border: 1px solid var(--line); min-width: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+h2 { font: 400 19px/1.3 var(--display); letter-spacing: .01em; }
+.note { color: var(--muted); font-size: 13px; }
+
+.deck { display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 20px; align-items: start; }
+.tabs { display: flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.tabs button { padding: 5px 12px; font-size: 13px; color: var(--ink-2); border-left: 1px solid var(--line); }
+.tabs button:first-child { border-left: 0; }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 4px 6px; padding: 10px 16px 0; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 3px; font-size: 13px; }
+.chip i { width: 14px; height: 3px; border-radius: 2px; }
+.chip[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
+.chart-box { position: relative; height: 440px; margin: 8px 8px 8px 16px; }
+.tip { position: absolute; z-index: 5; pointer-events: none; background: var(--bg); border: 1px solid var(--line); padding: 8px 10px; font-size: 12px; min-width: 150px; box-shadow: 0 6px 18px rgba(0, 0, 0, .45); }
+.tip-t { color: var(--muted); margin-bottom: 4px; }
+.tip-r { display: flex; align-items: center; gap: 6px; }
+.tip-r i { width: 10px; height: 3px; border-radius: 2px; flex: none; }
+.tip-r span:last-child { margin-left: auto; padding-left: 14px; }
+
+/* Rank board */
+.board { display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.row:hover { background: var(--panel-2); }
+.row .rk { font: 400 22px/1 var(--display); grid-row: span 2; color: var(--ink-2); }
+.row.top3 .rk { color: var(--accent); }
+.row .who { display: flex; align-items: center; gap: 7px; font-weight: 600; min-width: 0; }
+.row .who i { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.row .v { font-weight: 600; text-align: right; font-size: 16px; }
+.row .meta { font-size: 12px; color: var(--muted); }
+.row .d { font-size: 12px; text-align: right; }
+.flash-up { animation: fu .7s; } .flash-down { animation: fd .7s; }
+@keyframes fu { from { background: rgba(255, 90, 95, .22); } }
+@keyframes fd { from { background: rgba(79, 157, 255, .22); } }
+.cut { display: flex; align-items: center; gap: 8px; padding: 4px 16px; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--panel-2); border-bottom: 1px dashed var(--accent); }
+
+/* Monitor wall */
+.wall { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); }
+.mon { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; min-width: 0; background: var(--bg) repeating-linear-gradient(0deg, rgba(255, 255, 255, .018) 0 1px, transparent 1px 3px); }
+.mon:hover { background-color: var(--panel-2); }
+.mon-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.lamp { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; color: var(--up); }
+.lamp::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 1.6s infinite; }
+.lamp.off { color: var(--muted); }
+.lamp.off::before { animation: none; }
+@keyframes pulse { 50% { opacity: .3; } }
+.mon-name { font: 400 20px/1.2 var(--display); }
+.mon-v { font-size: 20px; font-weight: 600; }
+.mon svg { display: block; width: 100%; height: 44px; }
+
+/* Bump chart and table */
+.scroll { overflow-x: auto; }
+.bump { display: block; width: 100%; min-width: 660px; height: auto; }
+.bump g.ln { transition: opacity .12s; cursor: pointer; }
+.bump:has(g.ln:hover) g.ln:not(:hover) { opacity: .16; }
+.bump text { font-family: var(--body); fill: var(--ink-2); font-size: 12px; }
+.bump text.nm { fill: var(--ink); font-weight: 600; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: right; font-size: 12px; font-weight: 500; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+th.l, td.l { text-align: left; }
+tbody tr:hover { background: var(--panel-2); }
+.pill { display: inline-block; padding: 1px 7px; font-size: 12px; font-weight: 600; border-radius: 3px; border: 1px solid currentColor; }
+.pill.safe { color: var(--ink-2); }
+.pill.risk { color: var(--danger); }
+
+/* Profile */
+.back { color: var(--ink-2); font-size: 14px; }
+.back:hover { color: var(--ink); }
+.prof { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px; }
+.ava { width: 72px; height: 72px; display: grid; place-items: center; font: 400 34px/1 var(--display); color: var(--bg); border-radius: 4px; flex: none; }
+.prof h1 { font: 400 34px/1.15 var(--display); }
+.prof-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; color: var(--ink-2); font-size: 14px; }
+.prof-txt { flex: 1 1 220px; min-width: 0; }
+.btn { display: inline-block; padding: 9px 16px; border-radius: 3px; font-weight: 600; background: var(--accent); color: var(--accent-ink); text-align: center; }
+.btn:hover { filter: brightness(1.08); }
+.btn.wait { background: none; color: var(--muted); border: 1px dashed var(--line); font-weight: 500; }
+.stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+.stats > div { padding: 10px 16px; border-left: 1px solid var(--line); min-width: 0; }
+.stats > div:first-child { border-left: 0; }
+.stats .num { font-size: 19px; font-weight: 600; display: block; overflow-wrap: anywhere; }
+.keys { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--ink-2); padding: 10px 16px 0; }
+.keys i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; border-radius: 2px; }
+.keys i.ma { height: 2px; width: 16px; vertical-align: 3px; background: var(--accent); }
+.readout { padding: 6px 16px 0; font-size: 13px; color: var(--ink-2); min-height: 26px; }
+.candle-box { height: 400px; margin: 4px 8px 8px 16px; }
+.two { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.vod { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.vod:last-child { border-bottom: 0; }
+.thumb { height: 52px; display: grid; place-items: center; background: var(--bg); border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
+.vod-t { font-weight: 600; overflow-wrap: anywhere; }
+.vod-m { font-size: 12px; color: var(--muted); }
+.vod-l { font-size: 13px; color: var(--muted); text-align: right; }
+.vod-l a { color: var(--accent); font-weight: 600; }
+
+footer { border-top: 1px solid var(--line); padding-block: 14px 24px; color: var(--muted); font-size: 12px; }
+footer a { text-decoration: underline; }
+
+@media (max-width: 1040px) {
+  .deck, .two { grid-template-columns: minmax(0, 1fr); }
+  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stats > div:nth-child(4) { border-left: 0; }
+  .stats > div:nth-child(n+4) { border-top: 1px solid var(--line); }
+}
+@media (max-width: 640px) {
+  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .strip > div:nth-child(3) { border-left: 0; }
+  .strip > div:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .wall { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chart-box { height: 340px; margin-left: 8px; }
+  .candle-box { height: 320px; margin-left: 8px; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats > div:nth-child(odd) { border-left: 0; }
+  .stats > div:nth-child(4) { border-left: 1px solid var(--line); }
+  .stats > div:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .clock span { display: none; }
+  .vod { grid-template-columns: minmax(0, 1fr) auto; }
+  .thumb { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker { overflow-x: auto; }
+  .ticker-run { animation: none; }
+  .lamp::before { animation: none; }
+  .flash-up, .flash-down { animation: none; }
+}
+
+/* Real-data additions */
+.board { max-height: 560px; overflow-y: auto; }
+.wall { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0; background: none; }
+.mon { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.mon svg { height: 34px; }
+.mon-name { font-size: 18px; }
+.mon-v { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.pad { padding: 12px 16px; }
+.empty { padding: 20px 16px; color: var(--ink-2); }
+.big { font-size: 19px; font-weight: 600; display: block; }
+.out { color: var(--accent); font-weight: 600; }
+.find { display: flex; align-items: center; gap: 8px; }
+.find input { width: 160px; max-width: 100%; padding: 6px 10px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 3px; font: inherit; }
+th button { color: inherit; font: inherit; padding: 0; white-space: nowrap; }
+th button:hover, th button.on { color: var(--accent); }
+.vod-list { max-height: 520px; overflow-y: auto; }
+.lamp { white-space: nowrap; }
+.mon, .row { -webkit-tap-highlight-color: transparent; }
+@media (max-width: 640px) { .wall { grid-template-columns: repeat(2, minmax(0, 1fr)); } .board { max-height: 460px; } }
+</style>
+<style>body { margin: 0; }</style>
+</head>
+<body>
+<header class="top gutter">
+  <div class="wrap top-in">
+    <a class="logo" href="#control" aria-label="추튜버.GG 지통실로 이동">추튜버<b>.GG</b></a>
+    <nav class="nav" aria-label="주요 메뉴">
+      <a href="#control" id="nav-control">지통실</a>
+      <a href="#ranking" id="nav-ranking">순위</a>
+    </nav>
+    <div class="clock num" id="stamp"></div>
+  </div>
+</header>
+<div class="sample gutter"><div class="wrap" id="notice">시청자 수는 SOOP에서 1시간마다 수집합니다. 새 기록이 저장되면 화면이 자동으로 바뀝니다.</div></div>
+<div class="ticker" id="ticker" aria-hidden="true"></div>
+
+<main class="gutter"><div class="wrap">
+  <section class="view" id="view-control" hidden>
+    <div class="strip">
+      <div><div class="lbl">전체 시청자</div><div class="val num" id="s-total"></div><div class="sub">방송 중인 멤버 합산</div></div>
+      <div><div class="lbl">방송 중</div><div class="val num" id="s-live"></div><div class="sub" id="s-live-d"></div></div>
+      <div><div class="lbl">현재 1위</div><div class="val" id="s-top"></div><div class="sub num" id="s-top-d"></div></div>
+      <div><div class="lbl">마지막 수집</div><div class="val num" id="s-at"></div><div class="sub" id="s-count"></div></div>
+    </div>
+    <div class="deck">
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>시청자 수 차트</h2><p class="note" id="range-note"></p></div>
+          <div class="tabs" role="tablist" aria-label="차트 기간">
+            <button type="button" role="tab" data-range="1">24시간</button>
+            <button type="button" role="tab" data-range="7">7일</button>
+            <button type="button" role="tab" data-range="0">전체</button>
+          </div>
+        </div>
+        <div class="legend" id="legend"></div>
+        <div class="chart-box" id="market"><div class="tip" id="tip" hidden></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>순위</h2>
+          <div class="tabs" role="tablist" aria-label="순위 기준">
+            <button type="button" role="tab" data-board="cur">시청자</button>
+            <button type="button" role="tab" data-board="peak">최고 기록</button>
+            <button type="button" role="tab" data-board="fan">애청자</button>
+          </div></div>
+        <div class="board" id="board"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>모니터 월</h2><span class="note">방송 중인 멤버가 앞에 표시됩니다. 막대는 최근 24회 수집값입니다.</span></div>
+      <div class="wall" id="wall"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-ranking" hidden>
+    <div class="panel">
+      <div class="panel-head">
+        <div><h2>전체 순위표</h2><p class="note">제목을 누르면 그 항목으로 정렬합니다.</p></div>
+        <label class="find"><span class="lbl">멤버 찾기</span><input id="find" type="search" autocomplete="off" placeholder="이름 입력"></label>
+      </div>
+      <div class="scroll"><table><thead><tr id="rank-head"></tr></thead><tbody id="rank-table"></tbody></table></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-member" hidden></section>
+</div></main>
+
+<footer class="gutter"><div class="wrap">자료 SOOP 공개 방송국 정보 · 차트 라이브러리 <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts</a></div></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+const COLLECTED = "2026-11-02T22:59:44+09:00";
+/* [표시 이름, 방송국 ID, SOOP 닉네임, 애청자, 누적 방송(초), 최근 방송 시작, 현재 시청자 또는 null, 방송 제목] */
+const STATIONS = [
+["김담수","kimdamsu0112","김담수_",470,91225,"2026-11-02 20:30:07"],
+["리오투","ansungwoo","리오투",106,132221,"2026-11-02 15:31:32"],
+["루딱딱","n1126jmh","_루딱딱_",114,74738,"2026-11-02 02:56:53"],
+["엔카시아","ncasia","엔카시아",12,159,"2026-11-01 12:08:52"],
+["로태로","ysbns9","로태로",116,46500,"2026-11-02 19:28:41"],
+["금연남","gusdn1870","금연남",10,34938,"2026-11-02 09:47:16"],
+["마디석","me5567","마디석",7,1506,"2026-11-01 09:25:16"],
+["이픙","2peung","이픙_",12,83982,"2026-11-02 13:45:07"],
+["호접란","hjr0408","_호접란_",118,239959,"2026-11-01 15:28:54"],
+["느긋한","aeje1129","느긋한_",75,327218,"2026-10-27 11:21:53"],
+["강무하","csh921114","강무하",247,4172270,"2026-11-02 00:17:48"],
+["후안","madnug","후안__",12,3230235,"2026-10-31 10:59:39"],
+["독하다독해","grireel","독하다_독해",12,393498,"2026-11-01 12:46:25"],
+["꼰대곰","rnrrkdqud4","꼰대곰",32,907777,"2026-09-30 20:16:43"],
+["추패기","laytenns","추패기",22,418010,"2026-11-02 07:10:04"],
+["슷냥","sutnyang","숫냥",17,10670219,"2026-10-31 16:45:05"],
+["오지리","ohzi123","_오지리",19,988870,"2026-11-02 17:35:03"],
+["와구아","wakgooa","와구아",8,9926,"2026-10-25 00:43:58"],
+["록샤","jjw1802","록샤_",164,548418,"2026-11-02 14:58:50"],
+["이케맨","ikemen08","ikemen08",3,0,""],
+["콩쥐","kongji0215","콩쥐_",135,101540,"2026-11-01 19:00:45"],
+["아오이로하쿠","nju123","아오이로하쿠",7,6776,"2024-05-31 19:02:04"],
+["와르포","semsemkoo","와르포",5,22151,"2026-10-31 14:58:03"],
+["지표.","cmzlsh940501","지표.",55,1765531,"2026-11-02 21:16:10",6,"검사 약 스피드런"],
+["연막탄","yeonmak","모코_",5,0,""],
+["올리","olypoly","올리___",6,4916,"2026-11-01 16:52:24"],
+["모그mog","huisak2592","모그(Mog)",2,0,""],
+["병준이","hxox1s","병준이_",0,0,""],
+["꿀죽창","gksrufdma1","꿀죽창",11,427370,"2026-11-02 00:52:08"],
+["한도진","wlstn70","한도진_",5,45248,"2016-05-15 10:14:28"],
+["잡화","maleunesle","잡화",22,800506,"2026-06-02 08:35:37"],
+["너굻이","raccoon7546","너굻이",2,25085,"2026-11-02 19:39:12"]
+];
+/* 방송국 ID별 다시보기: n=전체 개수, v=[날짜, 길이(분), 조회수, 영상 번호] 최신 30개, t=최신 5개 제목 */
+const VODS = {
+kimdamsu0112:{n:7,v:[[261102,149,458,211563695],[261102,244,1159,211497291],[261101,120,348,211410109],[261031,94,206,211320067],[261030,220,786,211204427],[261029,181,1151,211117199],[261028,487,2425,211019217]],t:["리얼뉴와튜버 합격자 보면서 어디서부터 잘못됐는지 후회하기","리얼뉴와튜버 탈락하고 길버트님에게 가르침 받기","GCL 채널 워크래프트 스토리 같이보기 (1)","[망해두] 망해두만 잠깐 같이 보러 옴","와우 포에버 마법사 연구소 / FC27 쌀먹에디션으로 트라이"]},
+ansungwoo:{n:12,v:[[261102,175,53,211532291],[261102,23,21,211489753],[261101,166,52,211368227],[261030,230,46,211228799],[261029,144,288,211136915],[261028,355,164,211011013],[261026,195,59,210877347],[261024,131,50,210680817],[261023,94,80,210590467],[261022,311,61,210525441],[261021,120,117,210395017],[261020,163,2630,210324759]],t:["(신입} 알아본 비매너를 토대로 불성 진행하기","(신입} 리얼 뉴 와튜버 공지 봤습니다. 맞습니다 보류자","(신입 / 리얼 뉴 와튜버 신청자} 공포게임 - 골목길 : 귀흔","WOW 불타는 성전으로 미리 맛 봤습니다","왁컬로이드 월드컵 + 뉴 리얼 와튜버 신청자 알아보기"]},
+n1126jmh:{n:4,v:[[261102,37,40,211494569],[261102,247,118,211477625],[261031,156,40,211350845],[261030,118,61,211238991]],t:["좃댐","후열 리얼 뉴 와튜버들 탐방","10/31 내 페이셜 제작","안녕하세요 처음뵙겠습니다 그런데 이제 오픈테스트뱅을 곁들인"]},
+ysbns9:{n:5,v:[[261102,122,33,211553509],[261102,97,42,211522023],[261030,148,65,211235819],[261029,167,213,211122465],[261028,75,2182,211030163]],t:["[D-3] 데스게임 보고서 마무리 하자","추의 생각정리","[와포D-6] 추리게임 찍먹","왁굳님의 와우 재밌는 이유 알아보기","[웰컴버추얼] 로태로 데뷔합니다"]},
+gusdn1870:{n:1,v:[[261102,478,85,211529399]],t:["아바타 와루도에 적용시키기(11트)실패"]},
+"2peung":{n:8,v:[[261102,143,66,211526769],[261102,72,34,211517617],[261101,68,18,211460771],[261030,294,47,211225831],[261030,90,35,211204991],[261029,281,45,211127231],[261002,190,58,208686597],[261001,199,39,208586481]],t:["감정 배우기 와포 D-3","리뉴와 선발 다시보기+채팅창 반응 읽기","왁굳님 생각정리 구경","마늘먹고 사람되기 와포 D-6","방송용 가면 고르기(명대사월드컵)"]},
+hjr0408:{n:30,v:[[261101,106,65,211427951],[261031,85,72,211304421],[261030,71,30,211243791],[261028,49,46,211016987],[261026,94,138,210889525],[261024,79,35,210647881],[261023,103,105,210621115],[261022,73,40,210515601],[261019,67,135,210252817],[261018,78,196,210146495],[261018,280,267,210103267],[261017,36,58,210007121],[261015,62,32,209827293],[261013,153,46,209709003],[261011,129,159,209551909],[261011,155,57,209480849],[261009,164,242,209348519],[261007,78,64,209173119],[261007,61,15,209117715],[261005,201,93,208971385],[261003,199,30,208740659],[260930,127,138,208496053],[260928,106,65,208324927],[260926,82,41,208147803],[260924,91,31,207980873],[260923,124,67,207920317],[260922,52,26,207802293],[260920,101,25,207660989],[260919,85,24,207547901],[260918,119,110,207478483]],t:["잔잔토크뱅 (28일차/신입)","하루버멤 컨셉 무료나눔 받기 (27일차/신입)","[콜라보] Dagon: by H. P. Lovecraft (26일차/신입)","와혐단의 와우포에버 사전생성 대기뱅 (25일차/신입)","뉴바타 공개 풀트뱅 (24일차/신입)"]},
+aeje1129:{n:12,v:[[261027,256,90,210947697],[261026,248,90,210859113],[261022,324,56,210493111],[261020,367,40,210321849],[261019,332,57,210236445],[261007,181,40,209099589],[261006,191,27,209067163],[261002,427,60,208716571],[261001,410,50,208623807],[260930,511,41,208532977],[260929,255,43,208401989],[260928,249,59,208316431]],t:["잠입 방탈출 게임 - Agent A-숨겨진 퍼즐","마크 뉴비 엔더드래곤 까지 가보기3","마크 뉴비 엔더드래곤 까지 가보기2","마크 뉴비 엔더드래곤 까지 가보기","와우 포에버 오픈전 나에게 어울리는 직업 찾기"]},
+csh921114:{n:3,v:[[261102,560,181,211505425],[261101,104,28,211419325],[261101,52,13,211412645]],t:["버추얼 콘서트 월드컵 64강 시작!!!","[리얼뉴와튜버]데뷔방송(주술사 스킬 같이 보기)","[리얼뉴와튜버]와우 주술사 알아보기 같이해요!"]},
+madnug:{n:11,v:[[261031,707,106,211352303],[261030,159,31,211247335],[261029,144,22,211164897],[261028,170,24,211073789],[261028,56,43,211017581],[261025,481,59,210723453],[261019,354,18,210197909],[261018,386,23,210100737],[261010,391,24,209452023],[261009,251,9,209352255],[261004,273,21,208911201]],t:["그려 할로윈이구먼","가내 수공업","Live2D 만들기","버츄얼 아바타","와우 포에버 사전 생성"]},
+rnrrkdqud4:{n:11,v:[[260930,0,36,208516359],[260930,16,20,208516295],[260930,12,14,208514575],[260930,6,15,208513139],[260930,6,11,208512527],[260930,8,13,208511757],[260930,7,15,208510777],[260913,19,13,207021727],[260913,24,12,207020259],[260910,67,9,206766015],[260910,76,12,206759311]],t:["클립만들기중2","클립만들기중2","클립만들기중2","클립만들기중2","클립만들기중2"]},
+laytenns:{n:10,v:[[261102,605,185,211527085],[261101,451,92,211435749],[261031,207,44,211310299],[261030,240,53,211248213],[261030,306,58,211201933],[261029,263,56,211161745],[261029,185,74,211122069],[261028,61,33,211066173],[261028,30,17,211046131],[261028,142,48,211043711]],t:["[와포 D-3] 후열","[와포 D-4] SBO 시뮬레이터 와우포에버즈 우승시키기 / 축구 응원가 만들기","[와포 D-5] 2시) 애팸27 한시즌 돌려보기","[와포 D-6] 왁물원에 내가 싼 똥글들 보기","[와포 D-6] 에펨27 찍먹하기"]},
+sutnyang:{n:77,v:[[261031,221,24,211333111],[261030,134,18,211171401],[261029,271,48,211131713],[261029,236,25,211091053],[261010,272,35,209387059],[260930,144,5,208527005],[260930,664,37,208480939],[260929,185,16,208408673],[260928,193,22,208327337],[260928,208,17,208315127],[260927,201,13,208255093],[260927,11,4,208201689],[260927,144,12,208198759],[260926,423,39,208115287],[260925,156,9,208059001],[260925,513,20,208029515],[260924,275,13,207987381],[260924,483,17,207948179],[260921,169,6,207693389],[260919,447,63,207547597],[260919,60,13,207520889],[260919,36,7,207508473],[260919,610,40,207506313],[260918,416,68,207434947],[260918,866,57,207421595],[260917,100,8,207344593],[260917,109,11,207342083],[260917,256,19,207322799],[260916,404,37,207295711],[260916,24,4,207268307]],t:["포에버 기다리며 아제로스 서바이버 즐기기","포에버 기다리며 아제로스 서바이버 즐기기","포에버 기다리며 아제로스 서바이버 즐기기","포에버 기다리며 아제로스 서바이버 즐기기","와우가 하고싶은 사람"]},
+ohzi123:{n:15,v:[[261102,107,31,211538231],[261031,291,78,211291977],[261029,318,41,211141933],[261028,46,13,211075225],[261028,107,21,211069849],[261004,79,11,208890215],[260902,336,81,205990093],[260830,237,45,205753447],[260828,166,26,205517739],[260821,49,14,204924643],[260820,32,11,204830051],[260820,66,11,204776143],[260819,77,27,204764603],[260807,34,25,203620085],[260806,32,21,203527705]],t:["짱구 극장판 보고 운 후기","고멤 최다 탈락 후기(3일차)","와우 전에 방송키기 2일차","와우 전에 방송키기 1일차","와우 전에 방송키기 1일차"]},
+jjw1802:{n:5,v:[[261102,356,134,211548785],[261101,90,75,211425175],[261031,275,580,211330747],[261031,36,76,211304337],[261030,403,2791,211236259]],t:["몸치리뷰/콜옵/와우 컨텐츠 짜기","컨텐츠 조진 사람의 커뮤탐방","예열 옵치/ 하데스 노래 월드컵","예열 오버워치","웰컴버추얼 데뷔방송 / 후열 야구중계"]},
+kongji0215:{n:7,v:[[261102,384,122,211485391],[261031,152,142,211342053],[261031,136,68,211267591],[261029,116,60,211091423],[261027,121,58,210916903],[261024,89,60,210699999],[261024,156,2974,210672379]],t:["8시) 와우 4시간 반 짜리 스토리 퍼먹기","와우 포에버 정보 더 뜯어먹기 + 스토리 보기","와우 포에버 각종 정보 같이보기","[웰컴 버추얼] 4일차 탑골공원 고전짤 같이보기","[웰컴 버추얼] 3일차 추는 어떻게 해야 하는가. 건실 토크"]},
+semsemkoo:{n:2,v:[[261031,157,32,211314387],[261030,148,45,211218771]],t:["와우 하드코어 추억 회상, 신작 스팀겜 플레이","와르포 첫 방송 겸 자기소개"]},
+cmzlsh940501:{n:120,v:[[261102,249,79,211541011],[261101,340,58,211435823],[261031,252,30,211327265],[261030,270,64,211226631],[261029,240,341,211146449],[261028,238,51,211058981],[261028,181,84,210999611],[261027,537,91,210977009],[261026,491,90,210882715],[261026,189,31,210820579],[261025,189,32,210794525],[261025,258,49,210724875],[261024,94,35,210659329],[261023,147,77,210563527],[261023,590,55,210551911],[261021,176,18,210444055],[261021,187,28,210410361],[261020,290,55,210326255],[261020,295,52,210282705],[261019,438,38,210200551],[261018,275,69,210146039],[261017,374,117,210062873],[261016,247,52,209960985],[261016,42,12,209924983],[261015,275,28,209912119],[261015,48,12,209858693],[261015,285,54,209831749],[261014,239,28,209737025],[261013,202,44,209696957],[261013,259,43,209656167]],t:["무협 좋아 청년의 활협저어언!!!","무협 좋아 청년의 활협전3부","무협좋아 청년의 활협전!! 2부!","1부 활협전 2부 와우 노가리","무협 좋아 청년의 활협전"]},
+gksrufdma1:{n:2,v:[[261102,25,7,211484719],[261101,223,16,211461397]],t:["와우 3일전","와포하고싶어서 방송킨 인간"]},
+raccoon7546:{n:1,v:[[261102,104,21,211552555]],t:["[신입] 와우포에버 직업 추천 받습니다"]}
+};
+
+/* 첫 화면용 실제 수집 기록. 이후 기록은 사이트 저장소에서 불러옵니다. */
+const SEED = [
+  { t: 1793627984, live: { cmzlsh940501: [6, "검사 약 스피드런"] } },
+  { t: 1793628909, live: { cmzlsh940501: [9, "검사 약 스피드런"] } }
+];
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const $ = id => document.getElementById(id);
+const fmt = n => Math.round(n).toLocaleString("ko-KR");
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const KST = 9 * 3600, DAY = 86400;
+const COLORS = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"].map(css);
+const dateLabel = t => { const d = new Date(t * 1000); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
+const timeLabel = t => { const d = new Date(t * 1000), p = n => String(n).padStart(2, "0"); return `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`; };
+const toTime = n => { const s = String(n); return Date.UTC(2000 + +s.slice(0, 2), +s.slice(2, 4) - 1, +s.slice(4, 6)) / 1000; };
+
+const MEMBERS = STATIONS.map(([name, id, nick, fan, secs, last]) => {
+  const src = VODS[id] || { n: 0, v: [], t: [] };
+  return {
+    name, id, nick, fan, hours: secs / 3600, lastBroad: last ? Date.parse(last.replace(" ", "T") + "+09:00") / 1000 : 0,
+    vodTotal: src.n, url: `https://www.sooplive.com/station/${id}`,
+    vods: src.v.map(([date, mins, reads, no], i) => ({ time: toTime(date), mins, reads, no, title: src.t[i] || `${dateLabel(toTime(date))} 다시보기` }))
+  };
+});
+let HIST = [], range = 1, boardKey = "cur", market, lines = new Map(), TOP = [];
+const lastSnap = () => HIST[HIST.length - 1];
+const profile = m => `#member-${encodeURIComponent(m.id)}`;
+const color = m => m.color || css("--bar");
+
+function ingest(rows) {
+  HIST = rows.filter(r => r && typeof r.t === "number" && r.live).sort((a, b) => a.t - b.t);
+  const latest = lastSnap();
+  MEMBERS.forEach(m => {
+    m.points = HIST.filter(s => s.live[m.id]).map(s => ({ t: s.t, v: +s.live[m.id][0] || 0 }));
+    const now = latest && latest.live[m.id];
+    m.cur = now ? +now[0] || 0 : null;
+    m.title = now ? now[1] : "";
+    m.peak = m.points.reduce((x, p) => Math.max(x, p.v), 0);
+    m.avg = m.points.length ? m.points.reduce((s, p) => s + p.v, 0) / m.points.length : 0;
+    m.lastTime = Math.max(m.lastBroad, m.points.length ? m.points[m.points.length - 1].t : 0);
+    m.color = null;
+  });
+  TOP = [...MEMBERS].filter(m => m.points.length).sort((a, b) => (b.cur ?? -1) - (a.cur ?? -1) || b.peak - a.peak).slice(0, 8);
+  TOP.forEach((m, i) => m.color = COLORS[i]);
+  paintAll();
+}
+const lastText = m => {
+  if (m.cur != null) return "방송 중";
+  if (!m.lastTime) return "방송 기록 없음";
+  const k = t => Math.floor((t + KST) / DAY), days = k(Date.now() / 1000) - k(m.lastTime);
+  return days <= 0 ? "오늘 방송" : days < 365 ? `${days}일 전 방송` : `${Math.floor(days / 365)}년 전 방송`;
+};
+const rel = t => { const min = Math.max(0, Math.floor((Date.now() / 1000 - t) / 60)); return min < 1 ? "방금" : min < 60 ? `${min}분 전` : min < 1440 ? `${Math.floor(min / 60)}시간 전` : `${Math.floor(min / 1440)}일 전`; };
+
+/* 메인 차트 */
+const chartBase = () => ({
+  autoSize: true,
+  layout: { background: { type: "solid", color: css("--panel") }, textColor: css("--ink-2"), fontFamily: "IBM Plex Sans KR, Malgun Gothic, sans-serif", fontSize: 12, attributionLogo: false },
+  grid: { vertLines: { color: "rgba(38,55,66,.45)" }, horzLines: { color: "rgba(38,55,66,.8)" } },
+  rightPriceScale: { borderColor: css("--line"), scaleMargins: { top: .12, bottom: .08 } },
+  timeScale: { borderColor: css("--line"), rightOffset: 1, timeVisible: true, tickMarkFormatter: (t, type) => type < 3 ? dateLabel(t) : timeLabel(t) },
+  crosshair: { mode: 0, vertLine: { color: css("--muted"), labelBackgroundColor: css("--panel-2") }, horzLine: { color: css("--muted"), labelBackgroundColor: css("--panel-2") } },
+  localization: { locale: "ko-KR", priceFormatter: fmt, timeFormatter: t => `${dateLabel(t)} ${timeLabel(t)}` },
+  handleScale: { axisPressedMouseMove: false }
+});
+function drawMarket() {
+  lines.forEach(s => market.removeSeries(s));
+  lines = new Map();
+  document.querySelectorAll("[data-range]").forEach(b => b.setAttribute("aria-selected", +b.dataset.range === range));
+  const end = lastSnap()?.t ?? 0, snaps = HIST.filter(s => !range || s.t >= end - range * DAY);
+  $("range-note").textContent = `점 하나가 1시간마다 수집한 값입니다. 방송을 쉰 구간은 점 없이 이어집니다. 기록 ${fmt(snaps.length)}회`;
+  TOP.forEach(m => {
+    const s = market.addLineSeries({ color: m.color, lineWidth: 2, pointMarkersVisible: true, pointMarkersRadius: 3, title: innerWidth > 640 ? m.name : "", priceLineVisible: false, crosshairMarkerRadius: 4, priceFormat: { type: "custom", formatter: fmt, minMove: 1 } });
+    s.setData(snaps.map(x => x.live[m.id] ? { time: x.t + KST, value: +x.live[m.id][0] || 0 } : { time: x.t + KST }));
+    lines.set(m.id, s);
+  });
+  $("legend").innerHTML = TOP.map(m => `<button type="button" class="chip" data-id="${esc(m.id)}" aria-pressed="true"><i style="background:${m.color}"></i>${esc(m.name)}</button>`).join("");
+  market.timeScale().fitContent();
+}
+function buildMarket() {
+  market = LightweightCharts.createChart($("market"), chartBase());
+  market.subscribeCrosshairMove(p => {
+    const tip = $("tip");
+    if (!p.time || !p.point || p.point.x < 0) { tip.hidden = true; return; }
+    const rows = TOP.map(m => ({ m, d: lines.get(m.id) && p.seriesData.get(lines.get(m.id)) })).filter(x => x.d && x.d.value != null).sort((a, b) => b.d.value - a.d.value);
+    if (!rows.length) { tip.hidden = true; return; }
+    tip.innerHTML = `<div class="tip-t num">${dateLabel(p.time)} ${timeLabel(p.time)}</div>` + rows.map((x, i) => `<div class="tip-r"><i style="background:${x.m.color}"></i><span>${i + 1}. ${esc(x.m.name)}</span><span class="num">${fmt(x.d.value)}</span></div>`).join("");
+    tip.hidden = false;
+    const box = $("market"), w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = p.point.x + 16; if (x + w > box.clientWidth) x = p.point.x - w - 16;
+    tip.style.left = Math.max(0, x) + "px";
+    tip.style.top = Math.max(0, Math.min(p.point.y - h / 2, box.clientHeight - h)) + "px";
+  });
+  $("legend").addEventListener("click", e => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    const show = b.getAttribute("aria-pressed") !== "true";
+    b.setAttribute("aria-pressed", show);
+    lines.get(b.dataset.id)?.applyOptions({ visible: show });
+  });
+}
+
+/* 순위와 모니터 */
+function paintBoard() {
+  document.querySelectorAll("[data-board]").forEach(b => b.setAttribute("aria-selected", b.dataset.board === boardKey));
+  const val = { cur: m => m.cur ?? -1, peak: m => m.peak, fan: m => m.fan }[boardKey];
+  const sorted = [...MEMBERS].sort((a, b) => val(b) - val(a) || b.peak - a.peak || b.fan - a.fan);
+  const shown = boardKey === "cur" ? sorted.filter(m => m.cur != null) : boardKey === "peak" ? sorted.filter(m => m.peak) : sorted;
+  $("board").innerHTML = shown.map((m, i) => `<a class="row${i < 3 ? " top3" : ""}" href="${profile(m)}">
+    <span class="rk">${i + 1}</span>
+    <span class="who"><i style="background:${color(m)}"></i><span>${esc(m.name)}</span></span>
+    <span class="v num">${boardKey === "fan" ? fmt(m.fan) : `${fmt(boardKey === "cur" ? m.cur : m.peak)}명`}</span>
+    <span class="meta">${esc(boardKey === "cur" ? m.title || "방송 중" : lastText(m))}</span><span class="d"></span></a>`).join("") ||
+    `<p class="note pad">${boardKey === "cur" ? "마지막 수집 때 방송 중인 멤버가 없었습니다." : "아직 기록이 없습니다."}</p>`;
+}
+function paintWall() {
+  const sorted = [...MEMBERS].sort((a, b) => (b.cur ?? -1) - (a.cur ?? -1) || b.lastTime - a.lastTime);
+  const recent = HIST.slice(-24);
+  $("wall").innerHTML = sorted.map(m => {
+    const vals = recent.map(s => s.live[m.id] ? +s.live[m.id][0] || 0 : 0), hi = Math.max(1, ...vals), w = 200 / Math.max(vals.length, 24);
+    const bars = vals.map((v, i) => { const h = v ? Math.max(3, v / hi * 32) : 1; return `<rect x="${(i * w).toFixed(1)}" y="${34 - h}" width="${(w * .78).toFixed(1)}" height="${h}" fill="${v ? color(m) : css("--line")}"></rect>`; }).join("");
+    return `<a class="mon" href="${profile(m)}"><span class="mon-top"><span class="lamp${m.cur != null ? "" : " off"}">${m.cur != null ? "LIVE" : "OFF"}</span><span>${esc(lastText(m))}</span></span>
+      <span class="mon-name">${esc(m.name)}</span><span class="mon-v num">${m.cur != null ? `${fmt(m.cur)}명 시청` : m.peak ? `최고 ${fmt(m.peak)}명` : "수집 기록 없음"}</span>
+      <svg viewBox="0 0 200 34" preserveAspectRatio="none" aria-hidden="true">${bars}</svg></a>`;
+  }).join("");
+}
+function paintTicker() {
+  const items = [...MEMBERS].sort((a, b) => (b.cur ?? -1) - (a.cur ?? -1) || b.peak - a.peak || b.fan - a.fan).slice(0, 12)
+    .map(m => `<a class="tk" href="${profile(m)}" tabindex="-1"><strong>${esc(m.name)}</strong><span class="num ${m.cur != null ? "up" : "flat"}">${m.cur != null ? `${fmt(m.cur)}명` : "OFF"}</span></a>`).join("");
+  $("ticker").innerHTML = `<div class="ticker-run"><div class="ticker-set">${items}</div><div class="ticker-set">${items}</div></div>`;
+}
+function paintSummary() {
+  const live = MEMBERS.filter(m => m.cur != null).sort((a, b) => b.cur - a.cur), s = lastSnap();
+  $("s-total").textContent = fmt(live.reduce((x, m) => x + m.cur, 0));
+  $("s-live").textContent = `${live.length} / ${MEMBERS.length}`;
+  $("s-live-d").textContent = live.slice(0, 3).map(m => m.name).join(", ") + (live.length > 3 ? ` 외 ${live.length - 3}명` : "") || "방송 중인 멤버 없음";
+  $("s-top").textContent = live[0]?.name ?? "-";
+  $("s-top-d").textContent = live[0] ? `${fmt(live[0].cur)}명` : "방송 없음";
+  $("s-at").textContent = s ? `${dateLabel(s.t + KST)} ${timeLabel(s.t + KST)}` : "-";
+  $("s-count").textContent = s ? `${rel(s.t)}, 누적 ${fmt(HIST.length)}회 수집` : "수집 기록 없음";
+  $("stamp").textContent = s ? `수집 ${dateLabel(s.t + KST)} ${timeLabel(s.t + KST)} KST` : "";
+  const late = s && Date.now() / 1000 - s.t > 7200;
+  if (late) $("notice").textContent = `마지막 수집이 ${rel(s.t)}입니다. 컴퓨터나 Claude 앱이 꺼져 있으면 수집이 멈춥니다.`;
+}
+
+/* 순위표 */
+const COLS = [["rank", "순위", 1], ["name", "멤버", 1], ["cur", "현재 시청자"], ["peak", "최고 기록"], ["avg", "평균 시청자"], ["fan", "애청자"], ["hours", "누적 방송"], ["last", "최근 방송", 1], ["go", "방송국", 1]];
+const SORT = { cur: m => m.cur ?? -1, peak: m => m.peak, avg: m => m.avg, fan: m => m.fan, hours: m => m.hours, last: m => m.lastTime };
+let tableKey = "cur", query = "";
+function paintTable() {
+  $("rank-head").innerHTML = COLS.map(([k, l, left]) => `<th class="${left ? "l" : ""}">${SORT[k] ? `<button type="button" data-sort="${k}" class="${k === tableKey ? "on" : ""}">${l}${k === tableKey ? " ▼" : ""}</button>` : l}</th>`).join("");
+  const q = query.trim();
+  const list = [...MEMBERS].sort((a, b) => SORT[tableKey](b) - SORT[tableKey](a) || b.peak - a.peak || b.fan - a.fan).map((m, i) => [m, i + 1]).filter(([m]) => !q || m.name.includes(q) || m.nick.includes(q) || m.id.includes(q));
+  $("rank-table").innerHTML = list.map(([m, r]) => `<tr><td class="l num">${r}</td><td class="l"><a href="${profile(m)}"><b>${esc(m.name)}</b></a></td>
+    <td><span class="lamp${m.cur != null ? "" : " off"}">${m.cur != null ? `${fmt(m.cur)}명` : "OFF"}</span></td>
+    <td class="num">${m.peak ? fmt(m.peak) : "-"}</td><td class="num">${m.avg ? fmt(m.avg) : "-"}</td><td class="num">${fmt(m.fan)}</td><td class="num">${fmt(m.hours)}시간</td><td class="l">${esc(lastText(m))}</td>
+    <td class="l"><a class="out" href="${esc(m.url)}" target="_blank" rel="noopener">열기</a></td></tr>`).join("") || `<tr><td class="l" colspan="9">찾는 멤버가 없습니다.</td></tr>`;
+}
+
+/* 프로필 */
+let candle, activeId = null;
+function showMember(m) {
+  activeId = m.id;
+  const rank = [...MEMBERS].sort((a, b) => (b.cur ?? -1) - (a.cur ?? -1) || b.peak - a.peak).indexOf(m) + 1;
+  const days = new Map();
+  m.points.forEach(p => { const k = p.t + KST - (p.t + KST) % DAY, d = days.get(k); if (!d) days.set(k, { time: k, open: p.v, high: p.v, low: p.v, close: p.v }); else { d.high = Math.max(d.high, p.v); d.low = Math.min(d.low, p.v); d.close = p.v; } });
+  const bars = [...days.values()].sort((a, b) => a.time - b.time);
+  $("view-member").innerHTML = `
+    <a class="back" href="#control">← 지통실로 돌아가기</a>
+    <div class="panel">
+      <div class="prof">
+        <div class="ava" style="background:${color(m)}">${esc(m.name[0])}</div>
+        <div class="prof-txt"><h1>${esc(m.name)}</h1>
+          <div class="prof-meta"><span>SOOP · ${esc(m.nick)}</span><span class="lamp${m.cur != null ? "" : " off"}">${m.cur != null ? `방송 중 · ${fmt(m.cur)}명 시청` : esc(lastText(m))}</span></div>
+          ${m.title ? `<p class="note">방송 제목: ${esc(m.title)}</p>` : ""}</div>
+        <a class="btn" href="${esc(m.url)}" target="_blank" rel="noopener">방송국 바로가기</a>
+      </div>
+      <div class="stats">
+        <div><span class="lbl">현재 순위</span><span class="num">${m.cur != null ? `${rank}위` : "-"}</span></div>
+        <div><span class="lbl">현재 시청자</span><span class="num">${m.cur != null ? fmt(m.cur) : "-"}</span></div>
+        <div><span class="lbl">최고 기록</span><span class="num">${m.peak ? fmt(m.peak) : "-"}</span></div>
+        <div><span class="lbl">평균 시청자</span><span class="num">${m.avg ? fmt(m.avg) : "-"}</span></div>
+        <div><span class="lbl">애청자</span><span class="num">${fmt(m.fan)}</span></div>
+        <div><span class="lbl">누적 방송</span><span class="num">${fmt(m.hours)}시간</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><div><h2>일자별 시청자 수</h2><p class="note">1시간마다 수집한 값으로 만듭니다. 봉 하나가 그날의 시작, 최고, 최저, 종료 시청자 수입니다.</p></div></div>
+      ${bars.length ? `<div class="keys"><span><i style="background:var(--up)"></i>상승 마감</span><span><i style="background:var(--down)"></i>하락 마감</span></div><div class="readout num" id="readout"></div><div class="candle-box" id="candle"></div>` : `<p class="empty">아직 수집된 방송이 없습니다. 수집 시간에 방송 중이면 기록이 쌓입니다.</p>`}
+    </div>
+    <div class="panel"><div class="panel-head"><h2>방송 다시보기</h2><span class="note">11/2 기준${m.vodTotal > m.vods.length ? `, 전체 ${fmt(m.vodTotal)}개 중 최근 ${m.vods.length}개` : ""}</span></div>
+      ${m.vods.length ? m.vods.map(v => `<div class="vod"><div class="thumb num">${dateLabel(v.time)}</div><div><div class="vod-t">${esc(v.title)}</div><div class="vod-m">${Math.floor(v.mins / 60)}시간 ${v.mins % 60}분</div></div><div class="vod-l"><a href="https://vod.sooplive.com/player/${v.no}" target="_blank" rel="noopener">보기</a></div></div>`).join("") : `<p class="empty">올라온 다시보기가 없습니다.</p>`}
+    </div>`;
+  if (candle) { candle.remove(); candle = null; }
+  if (!bars.length) return;
+  const base = chartBase();
+  base.timeScale.timeVisible = false;
+  base.localization.timeFormatter = dateLabel;
+  candle = LightweightCharts.createChart($("candle"), base);
+  const up = css("--up"), down = css("--down");
+  const s = candle.addCandlestickSeries({ upColor: up, downColor: down, borderUpColor: up, borderDownColor: down, wickUpColor: up, wickDownColor: down, priceLineVisible: false });
+  s.setData(bars);
+  const read = d => { $("readout").textContent = `${dateLabel(d.time)}  시작 ${fmt(d.open)}  최고 ${fmt(d.high)}  최저 ${fmt(d.low)}  종료 ${fmt(d.close)}`; };
+  read(bars[bars.length - 1]);
+  candle.subscribeCrosshairMove(p => read(bars.find(b => b.time === p.time) || bars[bars.length - 1]));
+  candle.timeScale().fitContent();
+}
+
+/* 화면 */
+function paintAll() {
+  paintTicker(); paintSummary(); paintBoard(); paintWall(); paintTable();
+  if (market) drawMarket();
+  const m = activeId && MEMBERS.find(x => x.id === activeId);
+  if (m && !$("view-member").hidden) showMember(m);
+}
+function route() {
+  const h = decodeURIComponent(location.hash.slice(1)) || "control";
+  const m = h.startsWith("member-") ? MEMBERS.find(x => x.id === h.slice(7)) : null;
+  const view = m ? "member" : h === "ranking" ? "ranking" : "control";
+  ["control", "ranking", "member"].forEach(v => $(`view-${v}`).hidden = v !== view);
+  $("nav-control").removeAttribute("aria-current"); $("nav-ranking").removeAttribute("aria-current");
+  if (view !== "member") $(`nav-${view}`).setAttribute("aria-current", "page");
+  activeId = null;
+  if (m) showMember(m);
+  if (view === "control") { requestAnimationFrame(() => market.timeScale().fitContent()); setTimeout(() => market.timeScale().fitContent(), 120); }
+  document.title = m ? `${m.name} · 추튜버.GG` : "추튜버.GG";
+  scrollTo(0, 0);
+}
+buildMarket();
+ingest(SEED);
+route();
+addEventListener("hashchange", route);
+document.querySelectorAll("[data-range]").forEach(b => b.addEventListener("click", () => { range = +b.dataset.range; drawMarket(); }));
+document.querySelectorAll("[data-board]").forEach(b => b.addEventListener("click", () => { boardKey = b.dataset.board; paintBoard(); }));
+$("rank-head").addEventListener("click", e => { const b = e.target.closest("[data-sort]"); if (b) { tableKey = b.dataset.sort; paintTable(); } });
+$("find").addEventListener("input", e => { query = e.target.value; paintTable(); });
+setInterval(paintSummary, 60000);
+
+async function refresh() {
+  try {
+    const r = await fetch(`snapshots.json?v=${Math.floor(Date.now() / 60000)}`, { cache: "no-store" });
+    if (!r.ok) throw new Error(String(r.status));
+    const rows = await r.json();
+    if (rows.length && rows[rows.length - 1].t !== lastSnap()?.t) ingest(rows);
+  } catch { $("notice").textContent = "최신 기록을 불러오지 못했습니다. 잠시 후 다시 열어 주세요."; }
+}
+refresh();
+setInterval(refresh, 60000);
+</script>
+
+</body>
+</html>
