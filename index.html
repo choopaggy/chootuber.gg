@@ -570,7 +570,7 @@ function paintChamp() {
   const live = MEMBERS.filter(m => m.cur != null).sort((a, b) => b.cur - a.cur || b.peak - a.peak)[0];
   const m = live || [...MEMBERS].filter(x => x.peak).sort((a, b) => b.peak - a.peak)[0];
   if (!m) { $("champ").innerHTML = ""; return; }
-  const href = live && m.broadNo ? `https://play.sooplive.com/${m.id}/${m.broadNo}` : m.url;
+  const href = live ? `https://play.sooplive.com/${m.id}` : m.url;
   const img = live && m.broadNo ? `<img class="champ-img" src="https://liveimg.sooplive.com/m/${encodeURIComponent(m.broadNo)}?${m.thumbT}" alt="${esc(m.name)} 생방송 화면" referrerpolicy="no-referrer" onerror="this.hidden=true">` : "";
   $("champ").innerHTML = `<a class="champ" href="${esc(href)}" target="_blank" rel="noopener" aria-label="${esc(m.name)} ${live ? "생방송 보러 가기" : "방송국으로 이동"}">
     <div class="champ-pic"><img class="champ-face" src="${pfUrl(m)}" alt="" referrerpolicy="no-referrer" onerror="this.hidden=true">${img}<span class="champ-tag${live ? "" : " off"}">${live ? "LIVE" : "OFF"}</span></div>
