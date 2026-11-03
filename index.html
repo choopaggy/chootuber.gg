@@ -287,7 +287,9 @@ footer { font-size: 13px; color: var(--ink-2); }
 .live-box { width: min(980px, 100%); max-height: 100%; overflow: auto; background: var(--bg); border: 1px solid var(--accent); }
 .live-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
 .live-head .num { color: var(--up); font-weight: 600; }
-.live-close { margin-left: auto; padding: 5px 12px; border: 1px solid var(--line); border-radius: 3px; color: var(--ink); }
+.live-profile { margin-left: auto; color: var(--accent); font-weight: 700; }
+.pop-links { display: flex; gap: 12px; flex: none; }
+.live-close { padding: 5px 12px; border: 1px solid var(--line); border-radius: 3px; color: var(--ink); }
 .live-close:hover { border-color: var(--accent); color: var(--accent); }
 .live-foot { display: grid; gap: 6px; padding: 12px 14px; }
 .live-foot p { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
@@ -603,7 +605,7 @@ function showPop(tile) {
   if (popFor !== m.id) {
     clearTimeout(playTimer);
     popFor = m.id;
-    pop.innerHTML = `<div class="pop-media" id="pop-media">${liveThumb(m).replace(' loading="lazy"', "").replace('class="thumb-live" ', "")}</div><div class="pop-txt"><div class="pop-who">${pf(m).replace(' loading="lazy"', "")}<span>${esc(m.name)}</span><span class="num">${fmt(m.cur)}명 시청</span></div><div class="pop-title">${esc(m.title || "방송 중")}</div><div class="pop-foot"><span>광고가 먼저 나올 수 있습니다. 재생되지 않으면 재생기를 한 번 눌러 주세요.</span><a href="${playUrl(m.id)}" target="_blank" rel="noopener">SOOP에서 보기</a></div></div>`;
+    pop.innerHTML = `<div class="pop-media" id="pop-media">${liveThumb(m).replace(' loading="lazy"', "").replace('class="thumb-live" ', "")}</div><div class="pop-txt"><div class="pop-who">${pf(m).replace(' loading="lazy"', "")}<span>${esc(m.name)}</span><span class="num">${fmt(m.cur)}명 시청</span></div><div class="pop-title">${esc(m.title || "방송 중")}</div><div class="pop-foot"><span>광고가 먼저 나올 수 있습니다. 재생되지 않으면 재생기를 한 번 눌러 주세요.</span><span class="pop-links"><a href="${profile(m)}">프로필 보기</a><a href="${playUrl(m.id)}" target="_blank" rel="noopener">SOOP에서 보기</a></span></div></div>`;
     playTimer = setTimeout(() => {
       if (popFor === m.id) $("pop-media").insertAdjacentHTML("beforeend", playerFrame(m));
     }, 400);
@@ -629,7 +631,7 @@ $("wall").addEventListener("mouseover", e => { const t = e.target.closest(".mon[
 $("wall").addEventListener("mouseleave", hideSoon);
 $("wall").addEventListener("click", e => {
   const t = e.target.closest(".mon[data-live]");
-  if (!t) return;
+  if (!t || !e.target.closest(".thumb-live")) return;  // 썸네일은 라이브 창, 나머지 영역은 프로필로 이동합니다
   e.preventDefault();
   const m = MEMBERS.find(x => x.id === t.dataset.id);
   if (m) openLive(m);
@@ -647,12 +649,12 @@ modal.hidden = true;
 document.body.appendChild(modal);
 function openLive(m) {
   hidePop();
-  modal.innerHTML = `<div class="live-box" role="dialog" aria-modal="true" aria-label="${esc(m.name)} 생방송"><div class="live-head">${pf(m).replace(' loading="lazy"', "")}<strong>${esc(m.name)}</strong><span class="num">${fmt(m.cur)}명 시청</span><button type="button" class="live-close" aria-label="닫기">닫기</button></div><div class="pop-media">${playerFrame(m)}</div><div class="live-foot"><p>${esc(m.title || "방송 중")}</p><div class="pop-foot"><span>광고가 먼저 나올 수 있습니다.</span><a href="${playUrl(m.id)}" target="_blank" rel="noopener">SOOP에서 보기</a></div></div></div>`;
+  modal.innerHTML = `<div class="live-box" role="dialog" aria-modal="true" aria-label="${esc(m.name)} 생방송"><div class="live-head">${pf(m).replace(' loading="lazy"', "")}<strong>${esc(m.name)}</strong><span class="num">${fmt(m.cur)}명 시청</span><a class="live-profile" href="${profile(m)}">프로필 보기</a><button type="button" class="live-close" aria-label="닫기">닫기</button></div><div class="pop-media">${playerFrame(m)}</div><div class="live-foot"><p>${esc(m.title || "방송 중")}</p><div class="pop-foot"><span>광고가 먼저 나올 수 있습니다.</span><a href="${playUrl(m.id)}" target="_blank" rel="noopener">SOOP에서 보기</a></div></div></div>`;
   modal.hidden = false;
   modal.querySelector(".live-close").focus();
 }
 function closeLive() { modal.hidden = true; modal.innerHTML = ""; }
-modal.addEventListener("click", e => { if (e.target === modal || e.target.closest(".live-close")) closeLive(); });
+modal.addEventListener("click", e => { if (e.target === modal || e.target.closest(".live-close, .live-profile")) closeLive(); });
 addEventListener("keydown", e => { if (e.key === "Escape" && !modal.hidden) closeLive(); });
 
 /* 1위 특전 */
@@ -749,6 +751,8 @@ function paintAll() {
   }
 }
 function route() {
+  hidePop();
+  closeLive();
   const h = decodeURIComponent(location.hash.slice(1)) || "control";
   const m = h.startsWith("member-") ? MEMBERS.find(x => x.id === h.slice(7)) : null;
   const view = m ? "member" : h === "ranking" ? "ranking" : "control";
