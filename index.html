@@ -241,6 +241,17 @@ th button:hover, th button.on { color: var(--accent); }
 .lamp { white-space: nowrap; }
 .mon, .row { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 640px) { .wall { grid-template-columns: repeat(2, minmax(0, 1fr)); } .board { max-height: 460px; } }
+/* 제목과 항목 이름은 본문 글꼴로, 보조 글자는 더 밝고 크게 표시합니다 */
+h2 { font-family: var(--body); font-weight: 700; font-size: 18px; letter-spacing: 0; }
+.lbl { font-size: 13px; color: var(--ink-2); letter-spacing: 0; }
+.note, .sub, .row .meta, .row .d, .vod-m, .mon-top, .keys, .readout { font-size: 13px; color: var(--ink-2); }
+.mon-v { font-size: 14px; color: var(--ink); }
+.nav a { font-size: 16px; }
+.tabs button { font-size: 14px; }
+th { font-size: 13px; color: var(--ink-2); letter-spacing: 0; }
+.vod-l { font-size: 14px; color: var(--ink-2); }
+.cut { font-size: 13px; }
+footer { font-size: 13px; color: var(--ink-2); }
 /* 닉네임은 본문 글꼴로 표시해 읽기 쉽게 합니다 */
 .mon-name, .val:not(.num), .prof h1, .ava { font-family: var(--body); font-weight: 600; letter-spacing: 0; }
 .mon-name { font-size: 18px; line-height: 1.3; }
