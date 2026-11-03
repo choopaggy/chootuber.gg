@@ -259,6 +259,24 @@ footer { font-size: 13px; color: var(--ink-2); }
 .prof-live { padding: 0 16px 16px; max-width: 480px; }
 .ava { position: relative; overflow: hidden; }
 .ava img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.champ { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); background: var(--panel); border: 1px solid var(--accent); color: inherit; }
+.champ:hover .champ-go { filter: brightness(1.08); }
+.champ:hover .champ-img { transform: scale(1.015); }
+.champ-pic { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: var(--panel-2); display: grid; place-items: center; }
+.champ-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .2s; }
+.champ-face { width: 34%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; }
+.champ-tag { position: absolute; left: 12px; top: 12px; z-index: 2; padding: 3px 9px; border-radius: 3px; background: var(--up); color: #fff; font-size: 13px; font-weight: 700; }
+.champ-tag.off { background: var(--panel); color: var(--ink-2); }
+.champ-txt { display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 20px 24px; min-width: 0; }
+.champ-badge { align-self: flex-start; padding: 3px 10px; border-radius: 3px; background: var(--accent); color: var(--accent-ink); font-size: 13px; font-weight: 700; }
+.champ-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.champ-who .pf { width: 42px; height: 42px; box-shadow: 0 0 0 2px var(--accent) !important; }
+.champ-name { font-size: 28px; line-height: 1.25; font-weight: 700; overflow-wrap: anywhere; }
+.champ-num { font-family: var(--data); font-size: 34px; line-height: 1.15; font-weight: 600; font-variant-numeric: tabular-nums; }
+.champ-title { color: var(--ink-2); font-size: 14px; overflow-wrap: anywhere; }
+.champ-go { align-self: flex-start; padding: 10px 18px; border-radius: 3px; background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .champ:hover .champ-img { transform: none; } }
+@media (max-width: 820px) { .champ { grid-template-columns: minmax(0, 1fr); } .champ-txt { padding: 16px; } .champ-num { font-size: 28px; } }
 /* 닉네임은 본문 글꼴로 표시해 읽기 쉽게 합니다 */
 .mon-name, .val:not(.num), .prof h1, .ava { font-family: var(--body); font-weight: 600; letter-spacing: 0; }
 .mon-name { font-size: 18px; line-height: 1.3; }
@@ -322,6 +340,7 @@ footer { font-size: 13px; color: var(--ink-2); }
   </section>
 
   <section class="view" id="view-ranking" hidden>
+    <div id="champ"></div>
     <div class="panel">
       <div class="panel-head">
         <div><h2>전체 순위표</h2><p class="note">제목을 누르면 그 항목으로 정렬합니다.</p></div>
@@ -546,6 +565,22 @@ function paintSummary() {
   $("notice").textContent = late ? `마지막 수집이 ${rel(s.t)}입니다. 수집이 지연되고 있습니다.` : "시청자 수는 SOOP에서 약 10분마다 수집합니다. 새 기록이 저장되면 화면이 자동으로 바뀝니다.";
 }
 
+/* 1위 특전 */
+function paintChamp() {
+  const live = MEMBERS.filter(m => m.cur != null).sort((a, b) => b.cur - a.cur || b.peak - a.peak)[0];
+  const m = live || [...MEMBERS].filter(x => x.peak).sort((a, b) => b.peak - a.peak)[0];
+  if (!m) { $("champ").innerHTML = ""; return; }
+  const href = live && m.broadNo ? `https://play.sooplive.com/${m.id}/${m.broadNo}` : m.url;
+  const img = live && m.broadNo ? `<img class="champ-img" src="https://liveimg.sooplive.com/m/${encodeURIComponent(m.broadNo)}?${m.thumbT}" alt="${esc(m.name)} 생방송 화면" referrerpolicy="no-referrer" onerror="this.hidden=true">` : "";
+  $("champ").innerHTML = `<a class="champ" href="${esc(href)}" target="_blank" rel="noopener" aria-label="${esc(m.name)} ${live ? "생방송 보러 가기" : "방송국으로 이동"}">
+    <div class="champ-pic"><img class="champ-face" src="${pfUrl(m)}" alt="" referrerpolicy="no-referrer" onerror="this.hidden=true">${img}<span class="champ-tag${live ? "" : " off"}">${live ? "LIVE" : "OFF"}</span></div>
+    <div class="champ-txt"><span class="champ-badge">${live ? "현재 시청자 1위 특전" : "최고 기록 1위"}</span>
+      <div class="champ-who">${pf(m)}<span class="champ-name">${esc(m.name)}</span></div>
+      <div class="champ-num">${fmt(live ? m.cur : m.peak)}명</div>
+      <div class="champ-title">${esc(live ? m.title || "방송 중" : "지금은 방송 중이 아닙니다")}</div>
+      <span class="champ-go">${live ? "지금 보러 가기" : "방송국 가기"}</span></div></a>`;
+}
+
 /* 순위표 */
 const COLS = [["rank", "순위", 1], ["name", "멤버", 1], ["cur", "현재 시청자"], ["peak", "최고 기록"], ["avg", "평균 시청자"], ["fan", "애청자"], ["hours", "누적 방송"], ["last", "최근 방송", 1], ["go", "방송국", 1]];
 const SORT = { cur: m => m.cur ?? -1, peak: m => m.peak, avg: m => m.avg, fan: m => m.fan, hours: m => m.hours, last: m => m.lastTime };
@@ -612,7 +647,7 @@ function showMember(m) {
 
 /* 화면 */
 function paintAll() {
-  paintTicker(); paintSummary(); paintBoard(); paintWall(); paintTable();
+  paintTicker(); paintSummary(); paintBoard(); paintWall(); paintTable(); paintChamp();
   if (market) drawMarket();
   const m = activeId && MEMBERS.find(x => x.id === activeId);
   if (m && !$("view-member").hidden) showMember(m);
