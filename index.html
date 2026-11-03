@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>추튜버.GG</title>
+<meta name="description" content="추튜버 살아남기 멤버 32명의 시청자 수 순위와 차트를 약 10분마다 모아 보여 주는 사이트">
 <meta name="description" content="추튜버 살아남기 멤버 32명의 시청자 수 순위와 차트를 1시간마다 모아 보여 주는 사이트">
 <meta property="og:title" content="추튜버.GG">
 <meta property="og:description" content="추튜버 살아남기 시청자 수 순위와 차트">
@@ -255,7 +256,7 @@ th button:hover, th button.on { color: var(--accent); }
     <div class="clock num" id="stamp"></div>
   </div>
 </header>
-<div class="sample gutter"><div class="wrap" id="notice">시청자 수는 SOOP에서 1시간마다 수집합니다. 새 기록이 저장되면 화면이 자동으로 바뀝니다.</div></div>
+<div class="sample gutter"><div class="wrap" id="notice">시청자 수는 SOOP에서 약 10분마다 수집합니다. 새 기록이 저장되면 화면이 자동으로 바뀝니다.</div></div>
 <div class="ticker" id="ticker" aria-hidden="true"></div>
 
 <main class="gutter"><div class="wrap">
@@ -441,9 +442,9 @@ function drawMarket() {
   lines = new Map();
   document.querySelectorAll("[data-range]").forEach(b => b.setAttribute("aria-selected", +b.dataset.range === range));
   const end = lastSnap()?.t ?? 0, snaps = HIST.filter(s => !range || s.t >= end - range * DAY);
-  $("range-note").textContent = `점 하나가 1시간마다 수집한 값입니다. 방송을 쉰 구간은 점 없이 이어집니다. 기록 ${fmt(snaps.length)}회`;
+  $("range-note").textContent = `점 하나가 약 10분마다 수집한 값입니다. 방송을 쉰 구간은 점 없이 이어집니다. 기록 ${fmt(snaps.length)}회`;
   TOP.forEach(m => {
-    const s = market.addLineSeries({ color: m.color, lineWidth: 2, pointMarkersVisible: true, pointMarkersRadius: 3, title: innerWidth > 640 ? m.name : "", priceLineVisible: false, crosshairMarkerRadius: 4, priceFormat: { type: "custom", formatter: fmt, minMove: 1 } });
+    const s = market.addLineSeries({ color: m.color, lineWidth: 2, pointMarkersVisible: true, pointMarkersRadius: 2, title: innerWidth > 640 ? m.name : "", priceLineVisible: false, crosshairMarkerRadius: 4, priceFormat: { type: "custom", formatter: fmt, minMove: 1 } });
     s.setData(snaps.map(x => x.live[m.id] ? { time: x.t + KST, value: +x.live[m.id][0] || 0 } : { time: x.t + KST }));
     lines.set(m.id, s);
   });
@@ -511,7 +512,7 @@ function paintSummary() {
   $("s-at").textContent = s ? `${dateLabel(s.t + KST)} ${timeLabel(s.t + KST)}` : "-";
   $("s-count").textContent = s ? `${rel(s.t)}, 누적 ${fmt(HIST.length)}회 수집` : "수집 기록 없음";
   $("stamp").textContent = s ? `수집 ${dateLabel(s.t + KST)} ${timeLabel(s.t + KST)} KST` : "";
-  const late = s && Date.now() / 1000 - s.t > 7200;
+  const late = s && Date.now() / 1000 - s.t > 3600;
   if (late) $("notice").textContent = `마지막 수집이 ${rel(s.t)}입니다. 수집이 지연되고 있습니다.`;
 }
 
@@ -557,8 +558,8 @@ function showMember(m) {
       </div>
     </div>
     <div class="panel">
-      <div class="panel-head"><div><h2>일자별 시청자 수</h2><p class="note">1시간마다 수집한 값으로 만듭니다. 봉 하나가 그날의 시작, 최고, 최저, 종료 시청자 수입니다.</p></div></div>
-      ${bars.length ? `<div class="keys"><span><i style="background:var(--up)"></i>상승 마감</span><span><i style="background:var(--down)"></i>하락 마감</span></div><div class="readout num" id="readout"></div><div class="candle-box" id="candle"></div>` : `<p class="empty">아직 수집된 방송이 없습니다. 수집 시간에 방송 중이면 기록이 쌓입니다.</p>`}
+      <div class="panel-head"><div><h2>일자별 시청자 수</h2><p class="note">약 10분마다 수집한 값으로 만듭니다. 봉 하나가 그날의 시작, 최고, 최저, 종료 시청자 수입니다.</p></div></div>
+      ${bars.length ? `<div class="keys"><span><i style="background:var(--up)"></i>상승 마감</span><span><i style="background:var(--down)"></i>하락 마감</span></div><div class="readout num" id="readout"></div><div class="candle-box" id="candle"></div>` : `<p class="empty">아직 수집된 방송이 없습니다. 방송을 시작하면 기록이 쌓입니다.</p>`}
     </div>
     <div class="panel"><div class="panel-head"><h2>방송 다시보기</h2><span class="note">${infoDate} 기준${m.vodTotal > m.vods.length ? `, 전체 ${fmt(m.vodTotal)}개 중 최근 ${m.vods.length}개` : ""}</span></div>
       ${m.vods.length ? m.vods.map(v => `<div class="vod"><div class="thumb num">${dateLabel(v.time)}</div><div><div class="vod-t">${esc(v.title)}</div><div class="vod-m">${Math.floor(v.mins / 60)}시간 ${v.mins % 60}분</div></div><div class="vod-l"><a href="https://vod.sooplive.com/player/${v.no}" target="_blank" rel="noopener">보기</a></div></div>`).join("") : `<p class="empty">올라온 다시보기가 없습니다.</p>`}
