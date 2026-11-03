@@ -278,7 +278,8 @@ footer { font-size: 13px; color: var(--ink-2); }
 @media (prefers-reduced-motion: reduce) { .champ:hover .champ-img { transform: none; } }
 @media (max-width: 820px) { .champ { grid-template-columns: minmax(0, 1fr); } .champ-txt { padding: 16px; } .champ-num { font-size: 28px; } }
 .mon-title { font-size: 13px; line-height: 1.4; color: var(--ink); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-.mon[data-live] .thumb-live { cursor: zoom-in; }
+.mon[data-live] .thumb-live { cursor: pointer; }
+.pop-hint { font-size: 13px; color: var(--accent); font-weight: 600; }
 .pop { position: fixed; z-index: 20; left: 0; top: 0; width: min(520px, calc(100vw - 32px)); background: var(--bg); border: 1px solid var(--accent); box-shadow: 0 14px 40px rgba(0, 0, 0, .6); pointer-events: none; opacity: 0; transform: scale(.94); transition: opacity .12s, transform .12s; }
 .pop.on { opacity: 1; transform: scale(1); }
 .pop > img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--panel-2); }
@@ -580,13 +581,20 @@ const pop = document.createElement("div");
 pop.className = "pop";
 pop.hidden = true;
 document.body.appendChild(pop);
-let popFor = null;
+let popFor = null, popTimer = null;
 function showPop(tile) {
   const m = MEMBERS.find(x => x.id === tile.dataset.id);
   if (!m || !m.broadNo) return hidePop();
   if (popFor !== m.id) {
     popFor = m.id;
-    pop.innerHTML = `${liveThumb(m).replace(' loading="lazy"', "").replace('class="thumb-live" ', "")}<div class="pop-txt"><div class="pop-who">${pf(m).replace(' loading="lazy"', "")}<span>${esc(m.name)}</span><span class="num">${fmt(m.cur)}명 시청</span></div><div class="pop-title">${esc(m.title || "방송 중")}</div></div>`;
+    pop.innerHTML = `${liveThumb(m).replace(' loading="lazy"', "").replace('class="thumb-live" ', "")}<div class="pop-txt"><div class="pop-who">${pf(m).replace(' loading="lazy"', "")}<span>${esc(m.name)}</span><span class="num">${fmt(m.cur)}명 시청</span></div><div class="pop-title">${esc(m.title || "방송 중")}</div><div class="pop-hint">클릭하면 생방송으로 이동합니다</div></div>`;
+    clearInterval(popTimer);
+    popTimer = setInterval(() => {
+      const next = new Image();
+      next.referrerPolicy = "no-referrer";
+      next.onload = () => { const el = pop.querySelector(":scope > img"); if (el && popFor === m.id) el.src = next.src; };
+      next.src = `https://liveimg.sooplive.com/m/${encodeURIComponent(m.broadNo)}?${Date.now()}`;
+    }, 5000);
   }
   pop.hidden = false;
   const r = tile.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, gap = 10, pad = 12;
@@ -596,9 +604,16 @@ function showPop(tile) {
   pop.style.top = `${Math.max(pad, y)}px`;
   pop.classList.add("on");
 }
-function hidePop() { popFor = null; pop.classList.remove("on"); pop.hidden = true; }
+function hidePop() { clearInterval(popTimer); popFor = null; pop.classList.remove("on"); pop.hidden = true; }
 $("wall").addEventListener("mouseover", e => { const t = e.target.closest(".mon[data-live]"); if (t && e.target.closest(".thumb-live") && matchMedia("(hover: hover)").matches) showPop(t); else hidePop(); });
 $("wall").addEventListener("mouseleave", hidePop);
+$("wall").addEventListener("click", e => {
+  if (!e.target.closest(".thumb-live")) return;
+  const t = e.target.closest(".mon[data-live]");
+  if (!t) return;
+  e.preventDefault();
+  window.open(`https://play.sooplive.com/${encodeURIComponent(t.dataset.id)}`, "_blank", "noopener");
+});
 $("wall").addEventListener("focusin", e => { const t = e.target.closest(".mon[data-live]"); if (t && t.matches(":focus-visible")) showPop(t); });
 $("wall").addEventListener("focusout", hidePop);
 addEventListener("scroll", hidePop, { passive: true });
