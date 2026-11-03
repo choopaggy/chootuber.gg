@@ -512,7 +512,7 @@ function paintSummary() {
   $("s-count").textContent = s ? `${rel(s.t)}, 누적 ${fmt(HIST.length)}회 수집` : "수집 기록 없음";
   $("stamp").textContent = s ? `수집 ${dateLabel(s.t + KST)} ${timeLabel(s.t + KST)} KST` : "";
   const late = s && Date.now() / 1000 - s.t > 7200;
-  if (late) $("notice").textContent = `마지막 수집이 ${rel(s.t)}입니다. 컴퓨터나 Claude 앱이 꺼져 있으면 수집이 멈춥니다.`;
+  if (late) $("notice").textContent = `마지막 수집이 ${rel(s.t)}입니다. 수집이 지연되고 있습니다.`;
 }
 
 /* 순위표 */
