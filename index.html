@@ -313,7 +313,7 @@ footer { font-size: 13px; color: var(--ink-2); }
 .toasts { position: fixed; z-index: 25; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; width: min(360px, calc(100vw - 32px)); }
 .toast { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding: 12px; background: var(--panel-2); border: 1px solid var(--accent); box-shadow: 0 10px 28px rgba(0, 0, 0, .5); animation: toast-in .2s ease-out; }
 .toast .pf { width: 38px; height: 38px; grid-row: span 2; }
-.toast-open { min-width: 0; text-align: left; font-weight: 700; color: var(--ink); grid-column: 2; }
+.toast-open { padding: 0; min-width: 0; text-align: left; font-weight: 700; color: var(--ink); grid-column: 2; }
 .toast-open:hover { color: var(--accent); }
 .toast-title { grid-column: 2; font-size: 13px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .toast-close { grid-column: 3; grid-row: 1 / span 2; padding: 2px 6px; color: var(--ink-2); font-size: 16px; }
