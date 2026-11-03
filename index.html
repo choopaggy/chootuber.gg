@@ -611,20 +611,13 @@ function showPop(tile) {
     }, 400);
   }
   pop.hidden = false;
-  const r = tile.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, gap = 8, pad = 12;
-  let x = Math.max(pad, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - pad));
-  let y = r.top - h - gap;
-  if (y < pad) y = r.bottom + gap;
-  if (y + h > innerHeight - pad) {  // 위아래 공간이 없으면 썸네일을 가리지 않게 옆에 띄웁니다
-    y = Math.max(pad, Math.min(r.top, innerHeight - h - pad));
-    x = r.right + gap + w <= innerWidth - pad ? r.right + gap : Math.max(pad, r.left - gap - w);
-  }
+  const pad = 12, x = Math.max(pad, (innerWidth - pop.offsetWidth) / 2), y = Math.max(pad, (innerHeight - pop.offsetHeight) / 2);
   pop.style.left = `${x}px`;
-  pop.style.top = `${Math.max(pad, y)}px`;
+  pop.style.top = `${y}px`;
   pop.classList.add("on");
 }
 function hidePop() { clearTimeout(playTimer); clearTimeout(hideTimer); popFor = null; pop.classList.remove("on"); pop.hidden = true; pop.innerHTML = ""; }
-const hideSoon = () => { clearTimeout(hideTimer); hideTimer = setTimeout(hidePop, 350); };
+const hideSoon = () => { clearTimeout(hideTimer); hideTimer = setTimeout(hidePop, 900); };
 pop.addEventListener("mouseenter", () => clearTimeout(hideTimer));
 pop.addEventListener("mouseleave", hideSoon);
 $("wall").addEventListener("mouseover", e => { const t = e.target.closest(".mon[data-live]"); if (t && e.target.closest(".thumb-live") && matchMedia("(hover: hover)").matches) showPop(t); else if (popFor) hideSoon(); });
