@@ -36,7 +36,7 @@ jobs:
                 git pull -q --rebase origin main && git push -q origin main || echo "push 실패"
               fi
             fi
-            [ "$round" -lt 6 ] && sleep $(( 600 - (SECONDS - started) > 1 ? 600 - (SECONDS - started) : 1 ))
+            if [ "$round" -lt 6 ]; then sleep $(( 600 - (SECONDS - started) > 1 ? 600 - (SECONDS - started) : 1 )); fi
           done
       - name: 다음 수집 시작
         if: always()
