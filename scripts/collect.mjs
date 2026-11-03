@@ -15,7 +15,7 @@ const kstNow = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 1
 
 const live = {}, failed = [], stations = {}, at = kstNow(), t = Math.floor(Date.now() / 1000);
 const old = readJson("stations.json", { stations: {} });
-const daily = at.slice(11, 13) === "20" || old.at?.slice(0, 10) !== at.slice(0, 10) && !old.at;
+const daily = !old.at || (at.slice(11, 13) >= "20" && old.at.slice(0, 10) !== at.slice(0, 10));
 const errors = {};
 
 for (const id of IDS) {
@@ -36,7 +36,15 @@ for (const id of IDS) {
 console.log(`수집 ${at}: 방송 중 ${Object.keys(live).length}명, 실패 ${failed.length}명`, errors);
 if (failed.length >= 16) { console.error("실패한 멤버가 많아 저장하지 않습니다."); process.exit(1); }
 
-const rows = readJson("snapshots.json", []).filter(x => x.at.slice(0, 13) !== at.slice(0, 13));
+// 최근 7일은 10분 단위로, 그 이전은 1시간에 한 건만 남깁니다.
+const seenHours = new Set();
+const rows = readJson("snapshots.json", []).filter(x => x.at.slice(0, 15) !== at.slice(0, 15)).filter(x => {
+  if (x.t >= t - 7 * 86400) return true;
+  const hour = x.at.slice(0, 13);
+  if (seenHours.has(hour)) return false;
+  seenHours.add(hour);
+  return true;
+});
 rows.push({ t, at, live, failed });
 fs.writeFileSync("snapshots.json", JSON.stringify(rows));
 if (daily) {
