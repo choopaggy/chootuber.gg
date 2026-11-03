@@ -310,6 +310,16 @@ footer { font-size: 13px; color: var(--ink-2); }
 #bgm-vol { width: 96px; accent-color: var(--accent); cursor: pointer; }
 .clock #stamp { display: inline; }
 @media (max-width: 640px) { .clock #stamp { display: none; } #bgm-vol { width: 72px; } }
+.toasts { position: fixed; z-index: 25; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; width: min(360px, calc(100vw - 32px)); }
+.toast { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding: 12px; background: var(--panel-2); border: 1px solid var(--accent); box-shadow: 0 10px 28px rgba(0, 0, 0, .5); animation: toast-in .2s ease-out; }
+.toast .pf { width: 38px; height: 38px; grid-row: span 2; }
+.toast-open { min-width: 0; text-align: left; font-weight: 700; color: var(--ink); grid-column: 2; }
+.toast-open:hover { color: var(--accent); }
+.toast-title { grid-column: 2; font-size: 13px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast-close { grid-column: 3; grid-row: 1 / span 2; padding: 2px 6px; color: var(--ink-2); font-size: 16px; }
+.toast-close:hover { color: var(--ink); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 /* 닉네임은 본문 글꼴로 표시해 읽기 쉽게 합니다 */
 .mon-name, .val:not(.num), .prof h1, .ava { font-family: var(--body); font-weight: 600; letter-spacing: 0; }
 .mon-name { font-size: 18px; line-height: 1.3; }
@@ -479,7 +489,7 @@ const MEMBERS = STATIONS.map(([name, id, nick, fan, secs, last]) => {
     vods: src.v.map(([date, mins, reads, no], i) => ({ time: toTime(date), mins, reads, no, title: src.t[i] || `${dateLabel(toTime(date))} 다시보기` }))
   };
 });
-let infoDate = "11/2", HIST = [], range = 1, boardKey = "cur", market, lines = new Map(), TOP = [];
+let alertsReady = false, infoDate = "11/2", HIST = [], range = 1, boardKey = "cur", market, lines = new Map(), TOP = [];
 const lastSnap = () => HIST[HIST.length - 1];
 const profile = m => `#member-${encodeURIComponent(m.id)}`;
 const color = m => m.color || css("--bar");
@@ -488,6 +498,7 @@ const pf = m => `<img class="pf" src="${pfUrl(m)}" alt="" loading="lazy" referre
 const liveThumb = m => m.broadNo ? `<img class="thumb-live" src="https://liveimg.sooplive.com/m/${encodeURIComponent(m.broadNo)}?${m.thumbT}" alt="${esc(m.name)} 생방송 화면" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true">` : "";
 
 function ingest(rows) {
+  const before = lastSnap();
   HIST = rows.filter(r => r && typeof r.t === "number" && r.live).sort((a, b) => a.t - b.t);
   const latest = lastSnap();
   MEMBERS.forEach(m => {
@@ -505,6 +516,10 @@ function ingest(rows) {
   TOP = [...MEMBERS].filter(m => m.points.length).sort((a, b) => (b.cur ?? -1) - (a.cur ?? -1) || b.peak - a.peak).slice(0, 8);
   TOP.forEach((m, i) => m.color = COLORS[i]);
   paintAll();
+  if (alertsReady && before && latest && latest.t > before.t) {
+    const skip = new Set(before.failed || []);
+    MEMBERS.filter(m => m.cur != null && !before.live[m.id] && !skip.has(m.id)).forEach(showToast);
+  }
 }
 const lastText = m => {
   if (m.cur != null) return "방송 중";
@@ -513,6 +528,25 @@ const lastText = m => {
   return days <= 0 ? "오늘 방송" : days < 365 ? `${days}일 전 방송` : `${Math.floor(days / 365)}년 전 방송`;
 };
 const rel = t => { const min = Math.max(0, Math.floor((Date.now() / 1000 - t) / 60)); return min < 1 ? "방금" : min < 60 ? `${min}분 전` : min < 1440 ? `${Math.floor(min / 60)}시간 전` : `${Math.floor(min / 1440)}일 전`; };
+
+/* 방송 시작 알림 */
+const toasts = document.createElement("div");
+toasts.className = "toasts";
+toasts.setAttribute("aria-live", "polite");
+document.body.appendChild(toasts);
+function showToast(m) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.innerHTML = `${pf(m).replace(' loading="lazy"', "")}<button type="button" class="toast-open">${esc(m.name)}님이 방송을 시작했습니다</button><span class="toast-title">${esc(m.title || "방송 중")}</span><button type="button" class="toast-close" aria-label="알림 닫기">×</button>`;
+  el.querySelector(".toast-open").addEventListener("click", () => {
+    el.remove();
+    if (m.broadNo) openLive(m); else location.hash = `member-${encodeURIComponent(m.id)}`;
+  });
+  el.querySelector(".toast-close").addEventListener("click", () => el.remove());
+  toasts.appendChild(el);
+  while (toasts.children.length > 4) toasts.firstChild.remove();
+  setTimeout(() => el.remove(), 30000);
+}
 
 /* 메인 차트 */
 const chartBase = () => ({
@@ -825,6 +859,7 @@ async function refresh() {
     if (!r.ok) throw new Error(String(r.status));
     const rows = await r.json();
     if (rows.length && rows[rows.length - 1].t !== lastSnap()?.t) ingest(rows);
+    alertsReady = true;
   } catch { $("notice").textContent = "최신 기록을 불러오지 못했습니다. 잠시 후 다시 열어 주세요."; }
 }
 async function refreshStations() {
