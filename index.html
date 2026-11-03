@@ -643,11 +643,6 @@ function openLive(m) {
 function closeLive() { modal.hidden = true; modal.innerHTML = ""; }
 modal.addEventListener("click", e => { if (e.target === modal || e.target.closest(".live-close")) closeLive(); });
 addEventListener("keydown", e => { if (e.key === "Escape" && !modal.hidden) closeLive(); });
-$("view-member").addEventListener("click", e => {
-  if (!e.target.closest("#prof-play")) return;
-  const m = MEMBERS.find(x => x.id === activeId);
-  if (m?.broadNo) $("prof-media").innerHTML = playerFrame(m);
-});
 
 /* 1위 특전 */
 function paintChamp() {
@@ -697,7 +692,7 @@ function showMember(m) {
           ${m.title ? `<p class="note">방송 제목: ${esc(m.title)}</p>` : ""}</div>
         <a class="btn" href="${esc(m.url)}" target="_blank" rel="noopener">방송국 바로가기</a>
       </div>
-      ${m.broadNo ? `<div class="prof-live"><div class="pop-media" id="prof-media">${liveThumb(m).replace(' loading="lazy"', "").replace('class="thumb-live" ', "")}<button type="button" class="play-btn" id="prof-play">▶ 라이브 재생</button></div><div class="pop-foot"><span>광고가 먼저 나올 수 있습니다.</span><a href="${playUrl(m.id)}" target="_blank" rel="noopener">SOOP에서 보기</a></div></div>` : ""}
+      ${m.broadNo ? `<div class="prof-live"><div class="pop-media">${playerFrame(m)}</div><div class="pop-foot"><span>광고가 먼저 나올 수 있습니다. 재생되지 않으면 재생기를 한 번 눌러 주세요.</span><a href="${playUrl(m.id)}" target="_blank" rel="noopener">SOOP에서 보기</a></div></div>` : ""}
       <div class="stats">
         <div><span class="lbl">현재 순위</span><span class="num">${m.cur != null ? `${rank}위` : "-"}</span></div>
         <div><span class="lbl">현재 시청자</span><span class="num">${m.cur != null ? fmt(m.cur) : "-"}</span></div>
