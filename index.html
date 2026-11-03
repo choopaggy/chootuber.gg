@@ -241,6 +241,14 @@ th button:hover, th button.on { color: var(--accent); }
 .lamp { white-space: nowrap; }
 .mon, .row { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 640px) { .wall { grid-template-columns: repeat(2, minmax(0, 1fr)); } .board { max-height: 460px; } }
+/* 닉네임은 본문 글꼴로 표시해 읽기 쉽게 합니다 */
+.mon-name, .val:not(.num), .prof h1, .ava { font-family: var(--body); font-weight: 600; letter-spacing: 0; }
+.mon-name { font-size: 18px; line-height: 1.3; }
+.val:not(.num) { font-size: 25px; line-height: 1.35; }
+.prof h1 { font-size: 31px; line-height: 1.25; }
+.ava { font-size: 31px; }
+.row .who, .tk strong, .chip { font-weight: 500; }
+.row .who { font-size: 15px; }
 </style>
 <style>body { margin: 0; }</style>
 </head>
