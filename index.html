@@ -303,6 +303,13 @@ footer { font-size: 13px; color: var(--ink-2); }
 .pop-who .num { margin-left: auto; color: var(--up); font-weight: 600; }
 .pop-title { font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { .pop { transition: none; transform: none; } }
+.bgm { display: flex; align-items: center; gap: 8px; }
+.bgm-btn { padding: 4px 10px; border: 1px solid var(--line); border-radius: 3px; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+.bgm-btn:hover { color: var(--ink); border-color: var(--ink-2); }
+.bgm-btn[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); font-weight: 600; }
+#bgm-vol { width: 96px; accent-color: var(--accent); cursor: pointer; }
+.clock #stamp { display: inline; }
+@media (max-width: 640px) { .clock #stamp { display: none; } #bgm-vol { width: 72px; } }
 /* 닉네임은 본문 글꼴로 표시해 읽기 쉽게 합니다 */
 .mon-name, .val:not(.num), .prof h1, .ava { font-family: var(--body); font-weight: 600; letter-spacing: 0; }
 .mon-name { font-size: 18px; line-height: 1.3; }
@@ -322,7 +329,13 @@ footer { font-size: 13px; color: var(--ink-2); }
       <a href="#control" id="nav-control">지통실</a>
       <a href="#ranking" id="nav-ranking">순위</a>
     </nav>
-    <div class="clock num" id="stamp"></div>
+    <div class="clock">
+      <div class="bgm" role="group" aria-label="브금">
+        <button type="button" class="bgm-btn" id="bgm-toggle" aria-pressed="false">♪ 브금 켜기</button>
+        <input id="bgm-vol" type="range" min="0" max="100" step="1" value="35" aria-label="브금 음량">
+      </div>
+      <span class="num" id="stamp"></span>
+    </div>
   </div>
 </header>
 <div class="sample gutter"><div class="wrap" id="notice">시청자 수는 SOOP에서 약 10분마다 수집합니다. 새 기록이 저장되면 화면이 자동으로 바뀝니다.</div></div>
@@ -729,6 +742,44 @@ function showMember(m) {
   candle.subscribeCrosshairMove(p => read(bars.find(b => b.time === p.time) || bars[bars.length - 1]));
   candle.timeScale().fitContent();
 }
+
+/* 브금: 브라우저 정책상 방문자가 처음 클릭하거나 키를 누를 때 시작합니다 */
+const store = {
+  get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { /* 저장 없이 동작합니다 */ } }
+};
+const bgm = new Audio("bgm.mp3");
+bgm.loop = true;
+bgm.preload = "none";
+bgm.volume = +store.get("bgm-volume", "35") / 100;
+$("bgm-vol").value = Math.round(bgm.volume * 100);
+let bgmWanted = store.get("bgm-on", "1") === "1";
+const paintBgm = () => {
+  const on = !bgm.paused;
+  $("bgm-toggle").setAttribute("aria-pressed", on);
+  $("bgm-toggle").textContent = on ? "♪ 브금 끄기" : "♪ 브금 켜기";
+};
+bgm.addEventListener("play", paintBgm);
+bgm.addEventListener("pause", paintBgm);
+$("bgm-toggle").addEventListener("click", e => {
+  e.stopPropagation();
+  stopFirst();
+  bgmWanted = bgm.paused;
+  store.set("bgm-on", bgmWanted ? "1" : "0");
+  if (bgmWanted) bgm.play().catch(paintBgm); else bgm.pause();
+});
+$("bgm-vol").addEventListener("input", e => {
+  bgm.volume = +e.target.value / 100;
+  store.set("bgm-volume", e.target.value);
+});
+const firstPlay = e => {
+  if (e.target.closest?.(".bgm")) return;
+  stopFirst();
+  if (bgmWanted) bgm.play().catch(paintBgm);
+};
+const stopFirst = () => { removeEventListener("pointerdown", firstPlay); removeEventListener("keydown", firstPlay); };
+addEventListener("pointerdown", firstPlay);
+addEventListener("keydown", firstPlay);
 
 /* 화면 */
 function paintAll() {
