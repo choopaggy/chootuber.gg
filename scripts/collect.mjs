@@ -21,7 +21,10 @@ const errors = {};
 for (const id of IDS) {
   try {
     const a = await get(`${API}/${id}/station`);
-    if (a.broad) live[id] = [+a.broad.current_sum_viewer || 0, String(a.broad.broad_title || "").slice(0, 120)];
+    if (a.broad) {
+      const b = a.broad, open = !b.is_password && !b.subscription_only && !+b.broad_grade;  // 비밀번호, 구독 전용, 연령 제한 방송은 썸네일을 쓰지 않습니다
+      live[id] = [+b.current_sum_viewer || 0, String(b.broad_title || "").slice(0, 120), open ? b.broad_no : 0];
+    }
     if (daily) {
       const b = await get(`${API}/${id}/vods/review?page=1&per_page=10&orderby=reg_date`), s = a.station || {}, u = s.upd || {}, d = b.data || [];
       stations[id] = {
