@@ -280,7 +280,7 @@ footer { font-size: 13px; color: var(--ink-2); }
 .mon-title { font-size: 13px; line-height: 1.4; color: var(--ink); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .mon[data-live] .thumb-live { cursor: pointer; }
 .pop-hint { font-size: 13px; color: var(--accent); font-weight: 600; }
-.pop { position: fixed; z-index: 20; left: 0; top: 0; width: min(640px, calc(100vw - 32px)); background: var(--bg); border: 1px solid var(--accent); box-shadow: 0 14px 40px rgba(0, 0, 0, .6); pointer-events: none; opacity: 0; transform: scale(.94); transition: opacity .12s, transform .12s; }
+.pop { position: fixed; z-index: 20; left: 0; top: 0; width: min(640px, calc(100vw - 32px)); background: var(--bg); border: 1px solid var(--accent); box-shadow: 0 14px 40px rgba(0, 0, 0, .6); opacity: 0; transform: scale(.94); transition: opacity .12s, transform .12s; }
 .pop.on { opacity: 1; transform: scale(1); }
 .pop-media { position: relative; aspect-ratio: 16 / 9; background: var(--panel-2); }
 .live-modal { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: rgba(4, 8, 12, .78); }
@@ -594,26 +594,37 @@ const pop = document.createElement("div");
 pop.className = "pop";
 pop.hidden = true;
 document.body.appendChild(pop);
-let popFor = null, hideTimer = null;
+let popFor = null, hideTimer = null, playTimer = null;
 const playUrl = id => `https://play.sooplive.com/${encodeURIComponent(id)}`;
 function showPop(tile) {
   clearTimeout(hideTimer);
   const m = MEMBERS.find(x => x.id === tile.dataset.id);
   if (!m || !m.broadNo) return hidePop();
   if (popFor !== m.id) {
+    clearTimeout(playTimer);
     popFor = m.id;
-    pop.innerHTML = `<div class="pop-media" id="pop-media">${liveThumb(m).replace(' loading="lazy"', "").replace('class="thumb-live" ', "")}</div><div class="pop-txt"><div class="pop-who">${pf(m).replace(' loading="lazy"', "")}<span>${esc(m.name)}</span><span class="num">${fmt(m.cur)}명 시청</span></div><div class="pop-title">${esc(m.title || "방송 중")}</div><div class="pop-foot"><span>클릭하면 라이브가 재생됩니다</span></div></div>`;
+    pop.innerHTML = `<div class="pop-media" id="pop-media">${liveThumb(m).replace(' loading="lazy"', "").replace('class="thumb-live" ', "")}</div><div class="pop-txt"><div class="pop-who">${pf(m).replace(' loading="lazy"', "")}<span>${esc(m.name)}</span><span class="num">${fmt(m.cur)}명 시청</span></div><div class="pop-title">${esc(m.title || "방송 중")}</div><div class="pop-foot"><span>광고가 먼저 나올 수 있습니다. 재생되지 않으면 재생기를 한 번 눌러 주세요.</span><a href="${playUrl(m.id)}" target="_blank" rel="noopener">SOOP에서 보기</a></div></div>`;
+    playTimer = setTimeout(() => {
+      if (popFor === m.id) $("pop-media").insertAdjacentHTML("beforeend", playerFrame(m));
+    }, 400);
   }
   pop.hidden = false;
   const r = tile.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, gap = 8, pad = 12;
-  const x = Math.max(pad, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - pad));
-  const y = r.top - h - gap >= pad ? r.top - h - gap : Math.min(r.bottom + gap, innerHeight - h - pad);
+  let x = Math.max(pad, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - pad));
+  let y = r.top - h - gap;
+  if (y < pad) y = r.bottom + gap;
+  if (y + h > innerHeight - pad) {  // 위아래 공간이 없으면 썸네일을 가리지 않게 옆에 띄웁니다
+    y = Math.max(pad, Math.min(r.top, innerHeight - h - pad));
+    x = r.right + gap + w <= innerWidth - pad ? r.right + gap : Math.max(pad, r.left - gap - w);
+  }
   pop.style.left = `${x}px`;
   pop.style.top = `${Math.max(pad, y)}px`;
   pop.classList.add("on");
 }
-function hidePop() { clearTimeout(hideTimer); popFor = null; pop.classList.remove("on"); pop.hidden = true; pop.innerHTML = ""; }
+function hidePop() { clearTimeout(playTimer); clearTimeout(hideTimer); popFor = null; pop.classList.remove("on"); pop.hidden = true; pop.innerHTML = ""; }
 const hideSoon = () => { clearTimeout(hideTimer); hideTimer = setTimeout(hidePop, 350); };
+pop.addEventListener("mouseenter", () => clearTimeout(hideTimer));
+pop.addEventListener("mouseleave", hideSoon);
 $("wall").addEventListener("mouseover", e => { const t = e.target.closest(".mon[data-live]"); if (t && e.target.closest(".thumb-live") && matchMedia("(hover: hover)").matches) showPop(t); else if (popFor) hideSoon(); });
 $("wall").addEventListener("mouseleave", hideSoon);
 $("wall").addEventListener("click", e => {
