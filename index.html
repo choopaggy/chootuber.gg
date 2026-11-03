@@ -280,9 +280,12 @@ footer { font-size: 13px; color: var(--ink-2); }
 .mon-title { font-size: 13px; line-height: 1.4; color: var(--ink); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .mon[data-live] .thumb-live { cursor: pointer; }
 .pop-hint { font-size: 13px; color: var(--accent); font-weight: 600; }
-.pop { position: fixed; z-index: 20; left: 0; top: 0; width: min(520px, calc(100vw - 32px)); background: var(--bg); border: 1px solid var(--accent); box-shadow: 0 14px 40px rgba(0, 0, 0, .6); pointer-events: none; opacity: 0; transform: scale(.94); transition: opacity .12s, transform .12s; }
+.pop { position: fixed; z-index: 20; left: 0; top: 0; width: min(640px, calc(100vw - 32px)); background: var(--bg); border: 1px solid var(--accent); box-shadow: 0 14px 40px rgba(0, 0, 0, .6); opacity: 0; transform: scale(.94); transition: opacity .12s, transform .12s; }
 .pop.on { opacity: 1; transform: scale(1); }
-.pop > img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--panel-2); }
+.pop-media { position: relative; aspect-ratio: 16 / 9; background: var(--panel-2); }
+.pop-media img, .pop-media iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; object-fit: cover; }
+.pop-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--ink-2); }
+.pop-foot a { flex: none; color: var(--accent); font-weight: 700; }
 .pop-txt { display: grid; gap: 4px; padding: 12px 14px; }
 .pop-who { display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .pop-who .num { margin-left: auto; color: var(--up); font-weight: 600; }
@@ -576,47 +579,55 @@ function paintSummary() {
   $("notice").textContent = late ? `마지막 수집이 ${rel(s.t)}입니다. 수집이 지연되고 있습니다.` : "시청자 수는 SOOP에서 약 10분마다 수집합니다. 새 기록이 저장되면 화면이 자동으로 바뀝니다.";
 }
 
-/* 모니터 월 썸네일 확대 */
+/* 모니터 월 썸네일 확대와 생방송 재생 */
 const pop = document.createElement("div");
 pop.className = "pop";
 pop.hidden = true;
 document.body.appendChild(pop);
-let popFor = null, popTimer = null;
+let popFor = null, playTimer = null, hideTimer = null;
+const playUrl = id => `https://play.sooplive.com/${encodeURIComponent(id)}`;
 function showPop(tile) {
+  clearTimeout(hideTimer);
   const m = MEMBERS.find(x => x.id === tile.dataset.id);
   if (!m || !m.broadNo) return hidePop();
   if (popFor !== m.id) {
+    clearTimeout(playTimer);
     popFor = m.id;
-    pop.innerHTML = `${liveThumb(m).replace(' loading="lazy"', "").replace('class="thumb-live" ', "")}<div class="pop-txt"><div class="pop-who">${pf(m).replace(' loading="lazy"', "")}<span>${esc(m.name)}</span><span class="num">${fmt(m.cur)}명 시청</span></div><div class="pop-title">${esc(m.title || "방송 중")}</div><div class="pop-hint">클릭하면 생방송으로 이동합니다</div></div>`;
-    clearInterval(popTimer);
-    popTimer = setInterval(() => {
-      const next = new Image();
-      next.referrerPolicy = "no-referrer";
-      next.onload = () => { const el = pop.querySelector(":scope > img"); if (el && popFor === m.id) el.src = next.src; };
-      next.src = `https://liveimg.sooplive.com/m/${encodeURIComponent(m.broadNo)}?${Date.now()}`;
-    }, 5000);
+    pop.innerHTML = `<div class="pop-media" id="pop-media">${liveThumb(m).replace(' loading="lazy"', "").replace('class="thumb-live" ', "")}</div><div class="pop-txt"><div class="pop-who">${pf(m).replace(' loading="lazy"', "")}<span>${esc(m.name)}</span><span class="num">${fmt(m.cur)}명 시청</span></div><div class="pop-title">${esc(m.title || "방송 중")}</div><div class="pop-foot"><span>광고가 먼저 나올 수 있습니다. 소리는 재생기에서 켜 주세요.</span><a href="${playUrl(m.id)}" target="_blank" rel="noopener">SOOP에서 보기</a></div></div>`;
+    playTimer = setTimeout(() => {
+      if (popFor !== m.id) return;
+      const f = document.createElement("iframe");
+      f.src = `${playUrl(m.id)}/${encodeURIComponent(m.broadNo)}/embed?autoPlay=true&mutePlay=true`;
+      f.title = `${m.name} 생방송`;
+      f.allow = "autoplay; fullscreen";
+      f.allowFullscreen = true;
+      $("pop-media").appendChild(f);
+    }, 400);
   }
   pop.hidden = false;
-  const r = tile.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, gap = 10, pad = 12;
+  const r = tile.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, gap = 8, pad = 12;
   const x = Math.max(pad, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - pad));
   const y = r.top - h - gap >= pad ? r.top - h - gap : Math.min(r.bottom + gap, innerHeight - h - pad);
   pop.style.left = `${x}px`;
   pop.style.top = `${Math.max(pad, y)}px`;
   pop.classList.add("on");
 }
-function hidePop() { clearInterval(popTimer); popFor = null; pop.classList.remove("on"); pop.hidden = true; }
-$("wall").addEventListener("mouseover", e => { const t = e.target.closest(".mon[data-live]"); if (t && e.target.closest(".thumb-live") && matchMedia("(hover: hover)").matches) showPop(t); else hidePop(); });
-$("wall").addEventListener("mouseleave", hidePop);
+function hidePop() { clearTimeout(playTimer); clearTimeout(hideTimer); popFor = null; pop.classList.remove("on"); pop.hidden = true; pop.innerHTML = ""; }
+const hideSoon = () => { clearTimeout(hideTimer); hideTimer = setTimeout(hidePop, 350); };
+pop.addEventListener("mouseenter", () => clearTimeout(hideTimer));
+pop.addEventListener("mouseleave", hideSoon);
+$("wall").addEventListener("mouseover", e => { const t = e.target.closest(".mon[data-live]"); if (t && e.target.closest(".thumb-live") && matchMedia("(hover: hover)").matches) showPop(t); else if (popFor) hideSoon(); });
+$("wall").addEventListener("mouseleave", hideSoon);
 $("wall").addEventListener("click", e => {
   if (!e.target.closest(".thumb-live")) return;
   const t = e.target.closest(".mon[data-live]");
   if (!t) return;
   e.preventDefault();
-  window.open(`https://play.sooplive.com/${encodeURIComponent(t.dataset.id)}`, "_blank", "noopener");
+  window.open(playUrl(t.dataset.id), "_blank", "noopener");
 });
 $("wall").addEventListener("focusin", e => { const t = e.target.closest(".mon[data-live]"); if (t && t.matches(":focus-visible")) showPop(t); });
-$("wall").addEventListener("focusout", hidePop);
-addEventListener("scroll", hidePop, { passive: true });
+$("wall").addEventListener("focusout", hideSoon);
+addEventListener("keydown", e => { if (e.key === "Escape") hidePop(); });
 
 /* 1위 특전 */
 function paintChamp() {
