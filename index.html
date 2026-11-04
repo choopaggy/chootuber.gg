@@ -697,7 +697,7 @@ addEventListener("keydown", e => { if (e.key === "Escape") hidePop(); });
 
 /* 라이브 재생 창 */
 const embedUrl = m => `${playUrl(m.id)}/${encodeURIComponent(m.broadNo)}/embed`;
-const playerFrame = m => `<iframe data-no="${esc(m.broadNo)}" src="${embedUrl(m)}" title="${esc(m.name)} 생방송" allow="autoplay; fullscreen"></iframe>`;
+const playerFrame = m => `<iframe data-no="${esc(m.broadNo)}" src="${embedUrl(m)}" title="${esc(m.name)} 생방송" allow="autoplay; fullscreen; local-network; loopback-network"></iframe>`;
 const modal = document.createElement("div");
 modal.className = "live-modal";
 modal.hidden = true;
