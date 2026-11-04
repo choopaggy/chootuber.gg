@@ -1,7 +1,7 @@
 // 시청자 수를 수집해 snapshots.json에 저장합니다. 하루 한 번은 멤버 정보도 stations.json에 저장합니다.
 import fs from "node:fs";
 
-const IDS = "kimdamsu0112,ansungwoo,n1126jmh,ncasia,ysbns9,gusdn1870,me5567,2peung,hjr0408,aeje1129,csh921114,madnug,grireel,rnrrkdqud4,laytenns,sutnyang,ohzi123,wakgooa,jjw1802,ikemen08,kongji0215,nju123,semsemkoo,cmzlsh940501,yeonmak,olypoly,huisak2592,hxox1s,gksrufdma1,wlstn70,maleunesle,raccoon7546,hyogaem,jwp1994,sik999,yota1499,podojuice,dingding257,zzi1014,googimoo,brueberd,sys45".split(",");
+const IDS = "kimdamsu0112,ansungwoo,n1126jmh,ncasia,ysbns9,gusdn1870,me5567,2peung,hjr0408,aeje1129,csh921114,madnug,grireel,rnrrkdqud4,laytenns,sutnyang,ohzi123,wakgooa,jjw1802,ikemen08,kongji0215,nju123,semsemkoo,cmzlsh940501,yeonmak,olypoly,huisak2592,hxox1s,gksrufdma1,wlstn70,maleunesle,raccoon7546,hyogaem,jwp1994,sik999,yota1499,podojuice,dingding257,zzi1014,googimoo,brueberd,sys45,kimuzz1".split(",");
 const API = "https://chapi.sooplive.co.kr/api";
 const HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; chootuber-gg/1.0)", Accept: "application/json", Referer: "https://www.sooplive.com/" };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
