@@ -514,6 +514,8 @@ const liveThumb = m => m.broadNo ? `<img class="thumb-live" src="https://liveimg
 function ingest(rows) {
   const before = lastSnap();
   HIST = rows.filter(r => r && typeof r.t === "number" && r.live).sort((a, b) => a.t - b.t);
+  // 읽기에 실패한 멤버는 방송 종료로 보지 않고 직전 수집의 방송 상태를 이어 갑니다
+  HIST.forEach((s, i) => (s.failed || []).forEach(id => { if (!s.live[id] && HIST[i - 1]?.live[id]) s.live[id] = HIST[i - 1].live[id]; }));
   const latest = lastSnap();
   MEMBERS.forEach(m => {
     m.points = HIST.filter(s => s.live[m.id]).map(s => ({ t: s.t, v: +s.live[m.id][0] || 0 }));
